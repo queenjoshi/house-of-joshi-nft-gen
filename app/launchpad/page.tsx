@@ -1391,10 +1391,10 @@ export default function CreatePage() {
                                     </Button>
                                   </a>
                                 )}
-                                <a href={`/mint/${contractAddress}`}>
+                                <a href="/collections">
                                   <Button className="gold-button">
                                     <Rocket className="mr-2 h-4 w-4" />
-                                    Go to Mint Page
+                                    View Collections
                                   </Button>
                                 </a>
                               </div>
