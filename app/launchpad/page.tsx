@@ -378,6 +378,19 @@ export default function CreatePage() {
     setVerificationUrl(null);
 
     try {
+      // Step 1: Upload all assets to IPFS first
+      console.log('Uploading collection assets to IPFS...');
+      
+      const { generateAndUploadCollectionMetadata } = await import('@/lib/ipfs');
+      
+      const ipfsResults = await generateAndUploadCollectionMetadata(
+        collectionDetails,
+        layers,
+        address
+      );
+
+      console.log('IPFS upload results:', ipfsResults);
+
       // Dynamically import viem functions only when needed (client-side)
       const { encodeFunctionData, parseEther } = await import('viem');
 
@@ -404,13 +417,13 @@ export default function CreatePage() {
       const deploymentFeeWei = parseEther('0.0001');
       const deploymentFee = '0x' + deploymentFeeWei.toString(16);
 
-      // Prepare collection parameters
+      // Prepare collection parameters with IPFS URIs
       const collectionParams = {
         name: collectionDetails.name,
         symbol: collectionDetails.symbol,
-        contractURI: 'https://thehouseofjoshi.com/contract-metadata.json',
-        baseURI: 'ipfs://YOUR_IPFS_HASH/', // Placeholder - user should provide
-        unrevealedURI: 'ipfs://YOUR_UNREVEALED_HASH/', // Placeholder - user should provide
+        contractURI: ipfsResults.contractURI,
+        baseURI: ipfsResults.baseURI,
+        unrevealedURI: ipfsResults.baseURI, // Use same for now
         maxSupply: BigInt(collectionDetails.maxSupply),
         mintPrice: parseEther(collectionDetails.mintPrice),
         maxMintPerWallet: BigInt(0), // 0 = unlimited
@@ -421,6 +434,8 @@ export default function CreatePage() {
         royaltyBps: BigInt(collectionDetails.royaltyPercentage * 100), // Convert % to basis points
         allowlistRoot: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
       };
+
+      console.log('Collection parameters:', collectionParams);
 
       // Encode the function call
       const encodedData = encodeFunctionData({
@@ -531,24 +546,29 @@ export default function CreatePage() {
     }
   };
 
-  const verifyContract = async (contractAddr: string, networkChainId: number) => {
+  const verifyContract = async (contractAddr: string, networkChainId: number, txHash?: string) => {
     setDeployStatus('verifying');
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/verify-contract`, {
+      const response = await fetch('/api/verify-contract', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           contractAddress: contractAddr,
-          contractName: CONTRACT_NAME,
-          sourceCode: ROYAL_NFT_SOURCE_CODE,
-          compilerVersion: COMPILER_VERSION,
-          constructorArgs: '',
-          chainId: networkChainId,
+          deployerAddress: address,
+          name: collectionDetails.name,
+          symbol: collectionDetails.symbol,
+          description: collectionDetails.description,
+          maxSupply: collectionDetails.maxSupply,
+          mintPrice: collectionDetails.mintPrice,
+          royaltyPercentage: collectionDetails.royaltyPercentage,
+          contractURI: deployTxHash ? 'pending' : '',
+          baseURI: 'pending',
+          coverImageUrl: collectionDetails.coverImage || '',
+          bannerImageUrl: collectionDetails.bannerImage || '',
+          transactionHash: txHash || deployTxHash,
         }),
       });
 
@@ -556,10 +576,13 @@ export default function CreatePage() {
 
       if (data.success) {
         setDeployStatus('verified');
-        setVerificationUrl(data.explorerUrl);
+        const explorerBase = networkChainId === 84532
+          ? 'https://sepolia.basescan.org'
+          : 'https://basescan.org';
+        setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
       } else {
         setDeployStatus('deployed');
-        setDeployError(data.error || 'Verification failed. You can verify manually on Basescan.');
+        setDeployError(data.error || 'Collection saved. You can view it on Basescan.');
         const explorerBase = networkChainId === 84532
           ? 'https://sepolia.basescan.org'
           : 'https://basescan.org';
@@ -567,7 +590,7 @@ export default function CreatePage() {
       }
     } catch (error: any) {
       setDeployStatus('deployed');
-      setDeployError('Verification service unavailable. You can verify manually on Basescan.');
+      console.error('Verification error:', error);
       const explorerBase = networkChainId === 84532
         ? 'https://sepolia.basescan.org'
         : 'https://basescan.org';
