@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, List, Crown, ExternalLink, Sparkles } from 'lucide-react';
+import { LayoutGrid, List, Crown, ExternalLink, Sparkles, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,8 @@ export default function CollectionsPage() {
   const [collections, setCollections] = useState<CollectionCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
   const deployedCollections = useCollectionsStore((state) => state.getAllCollections());
 
@@ -59,6 +61,27 @@ export default function CollectionsPage() {
     setCollections(displayCollections);
     setIsLoading(false);
   }, [deployedCollections, isHydrated]);
+
+  const handleDebug = () => {
+    const stored = localStorage.getItem('collections-storage');
+    const info = `
+Collections in localStorage:
+${stored ? JSON.stringify(JSON.parse(stored), null, 2) : 'No data found'}
+
+Collections in state:
+${JSON.stringify(deployedCollections, null, 2)}
+
+Display collections:
+${JSON.stringify(collections, null, 2)}
+    `;
+    setDebugInfo(info);
+    setShowDebug(true);
+    console.log(info);
+  };
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
 
   const getOpenSeaUrl = (contractAddress: string) => {
     return `https://opensea.io/collection/${contractAddress}`;
@@ -112,8 +135,27 @@ export default function CollectionsPage() {
                 </div>
               </div>
 
-              <div className="text-sm text-muted-foreground">
-                {collections.length} collection{collections.length !== 1 ? 's' : ''} available
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-muted-foreground">
+                  {collections.length} collection{collections.length !== 1 ? 's' : ''} available
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="royal-border"
+                  onClick={handleRefresh}
+                  title="Refresh collections"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleDebug}
+                  title="Show debug info"
+                >
+                  Debug
+                </Button>
               </div>
             </div>
           </div>
@@ -368,6 +410,29 @@ export default function CollectionsPage() {
           )}
         </div>
       </main>
+
+      {/* Debug Modal */}
+      {showDebug && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="royal-card w-full max-w-2xl max-h-96 overflow-auto">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">Debug Information</h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowDebug(false)}
+                >
+                  Close
+                </Button>
+              </div>
+              <pre className="text-xs bg-royal-500/10 p-3 rounded border border-royal-500/20 overflow-auto max-h-80">
+                {debugInfo}
+              </pre>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Footer />
     </div>
