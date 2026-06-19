@@ -489,7 +489,7 @@ export default function CreatePage() {
 
       // Parse CollectionCreated event from logs
       // Event signature: CollectionCreated(indexed creator, indexed collection, string name, string symbol)
-      let deployedCollectionAddress = receipt.contractAddress;
+      let deployedCollectionAddress: string | null = null;
       
       console.log('Transaction receipt:', {
         contractAddress: receipt.contractAddress,
@@ -497,20 +497,25 @@ export default function CreatePage() {
         status: receipt.status,
       });
       
-      if (receipt.logs && receipt.logs.length > 0) {
-        // The event is emitted by the factory, look for CollectionCreated events
-        // Topic: keccak256('CollectionCreated(address,address,string,string)')
-        const eventSignature = '0x' + Array.from(new Uint8Array(32)).map(() => '0').join('');
-        
+      // Method 1: Check if factory created a contract directly
+      if (receipt.contractAddress && receipt.contractAddress !== '0x0000000000000000000000000000000000000000') {
+        deployedCollectionAddress = receipt.contractAddress;
+        console.log('Using receipt.contractAddress:', deployedCollectionAddress);
+      }
+      
+      // Method 2: Try to extract from factory events
+      if (!deployedCollectionAddress && receipt.logs && receipt.logs.length > 0) {
         for (const log of receipt.logs) {
-          console.log('Log from:', log.address, 'Factory:', CONTRACTS.FACTORY);
           // Check if this is an event from the factory contract
           if (log.address?.toLowerCase() === CONTRACTS.FACTORY.toLowerCase()) {
-            console.log('Found factory log with topics:', log.topics?.length);
+            console.log('Found factory event with topics:', log.topics?.length);
             // The second indexed parameter (collection address) is at topics[2]
+            // topics[0] = event signature
+            // topics[1] = first indexed param (creator)
+            // topics[2] = second indexed param (collection address)
             if (log.topics && log.topics.length >= 3) {
               const collectionAddr = '0x' + log.topics[2].slice(-40);
-              console.log('Extracted collection address:', collectionAddr);
+              console.log('Extracted collection address from event:', collectionAddr);
               deployedCollectionAddress = collectionAddr;
               break;
             }
@@ -518,7 +523,7 @@ export default function CreatePage() {
         }
       }
 
-      console.log('Final deployed address:', deployedCollectionAddress);
+      console.log('Final deployed address to use:', deployedCollectionAddress);
 
       const explorerBase = chainId === 84532
         ? 'https://sepolia.basescan.org'
@@ -530,13 +535,14 @@ export default function CreatePage() {
       setVerificationUrl(`${explorerBase}/tx/${txHash}`);
 
       // Save deployed collection to store
-      if (deployedCollectionAddress && deployedCollectionAddress !== 'See transaction details' && address) {
+      if (deployedCollectionAddress && address) {
         console.log('Saving collection to store:', {
           name: collectionDetails.name,
           symbol: collectionDetails.symbol,
           contractAddress: deployedCollectionAddress,
+          creator: address,
         });
-        addDeployedCollection({
+        const collectionToSave = {
           id: crypto.randomUUID(),
           contractAddress: deployedCollectionAddress,
           name: collectionDetails.name,
@@ -548,13 +554,14 @@ export default function CreatePage() {
           creatorAddress: address,
           deployedAt: Date.now(),
           txHash: txHash,
-        });
-        console.log('Collection saved!');
+        };
+        addDeployedCollection(collectionToSave);
+        console.log('Collection saved to store!');
       } else {
-        console.warn('Collection not saved - missing data:', {
+        console.warn('⚠️ Collection NOT saved - missing data:', {
           hasAddress: !!deployedCollectionAddress,
-          isValidAddress: deployedCollectionAddress !== 'See transaction details',
           hasCreator: !!address,
+          deployedCollectionAddress,
         });
       }
 
