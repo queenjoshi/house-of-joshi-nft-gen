@@ -136,11 +136,11 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
       return;
     }
 
-    // Fill with transparent
-    ctx.clearRect(0, 0, size, size);
+    // Fill with royal background
+    ctx.fillStyle = '#1a0a2e';
+    ctx.fillRect(0, 0, size, size);
 
     let loadedCount = 0;
-    let hasError = false;
     let resolved = false;
 
     if (traitUrls.length === 0) {
@@ -148,13 +148,13 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
       return;
     }
 
-    // Set a timeout to force resolution after 5 seconds
+    // Set a timeout to force resolution after 3 seconds
     const timeout = setTimeout(() => {
       if (!resolved) {
         resolved = true;
         resolve(canvas.toDataURL('image/png'));
       }
-    }, 5000);
+    }, 3000);
 
     const checkComplete = () => {
       if (loadedCount === traitUrls.length && !resolved) {
@@ -172,23 +172,23 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
       }
 
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      // Don't set crossOrigin for data URLs
+      if (!url.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
       
       img.onload = () => {
-        if (!hasError) {
-          try {
-            ctx.drawImage(img, 0, 0, size, size);
-          } catch (e) {
-            console.error('Error drawing image:', e);
-            hasError = true;
-          }
+        try {
+          ctx.drawImage(img, 0, 0, size, size);
+        } catch (e) {
+          console.warn('Error drawing image:', e);
         }
         loadedCount++;
         checkComplete();
       };
 
       img.onerror = () => {
-        console.error('Error loading image:', url);
+        console.warn('Error loading trait image');
         loadedCount++;
         checkComplete();
       };
@@ -701,7 +701,7 @@ export default function CreatePage() {
                           <img
                             src={collectionDetails.bannerImage}
                             alt="Banner Preview"
-                            className="w-full h-32 object-cover"
+                            className="w-full h-48 object-cover"
                           />
                           <Button
                             size="sm"
@@ -757,7 +757,7 @@ export default function CreatePage() {
                           <img
                             src={collectionDetails.coverImage}
                             alt="Cover Preview"
-                            className="w-full h-32 object-cover"
+                            className="w-full h-48 object-cover"
                           />
                           <Button
                             size="sm"
@@ -1229,9 +1229,8 @@ export default function CreatePage() {
                               <div className="text-sm">
                                 <p className="font-medium mb-1">Deployment Checklist</p>
                                 <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                                  <li>Deployment fee: 0.0001 ETH (sent to House wallet)</li>
+                                  <li>Deployment fee: 0.0001 ETH</li>
                                   <li>Make sure you have enough ETH for gas fees + deployment fee</li>
-                                  <li>Contract will be automatically verified on Basescan</li>
                                   <li>After deployment, your collection will be live on Base</li>
                                 </ul>
                               </div>
@@ -1269,21 +1268,6 @@ export default function CreatePage() {
                           {/* Deploy Button */}
                           {deployStatus === 'idle' && (
                             <div className="flex flex-col gap-4">
-                              <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-blue-300">
-                                <p className="font-medium mb-2">💡 Tip:</p>
-                                <p>
-                                  For full contract deployment with parameter encoding, use the 
-                                  <a 
-                                    href={`https://basescan.org/address/${CONTRACTS.FACTORY}#writeContract`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-crown hover:underline ml-1"
-                                  >
-                                    Basescan contract interaction tool
-                                  </a>
-                                  .
-                                </p>
-                              </div>
                               <Button
                                 onClick={handleDeploy}
                                 disabled={!canDeploy || !collectionDetails.name || !collectionDetails.symbol}

@@ -94,7 +94,7 @@ export function Footer() {
                 <DiscordIcon className="h-5 w-5" />
               </a>
               <a
-                href="https://instagram.com/thehouseofjoshi"
+                href="https://instagram.com/thehouseofjoshi_"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-crown transition-colors"
