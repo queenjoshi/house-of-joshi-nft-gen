@@ -1,0 +1,310 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Royal Color Variables */
+  --royal-50: #faf5ff;
+  --royal-100: #f3e8ff;
+  --royal-200: #e9d5ff;
+  --royal-300: #d8b4fe;
+  --royal-400: #c084fc;
+  --royal-500: #a855f7;
+  --royal-600: #9333ea;
+  --royal-700: #7e22ce;
+  --royal-800: #6b21a8;
+  --royal-900: #581c87;
+  --royal-950: #1a0a2e;
+
+  --gold-50: #fffbeb;
+  --gold-100: #fef3c7;
+  --gold-200: #fde68a;
+  --gold-300: #fcd34d;
+  --gold-400: #fbbf24;
+  --gold-500: #ffd700;
+  --gold-600: #d97706;
+  --gold-700: #b45309;
+  --gold-800: #92400e;
+  --gold-900: #78350f;
+  --gold-950: #451a03;
+
+  --crown: #d4af37;
+  --crown-light: #e8c965;
+  --crown-dark: #b8941f;
+}
+
+@layer base {
+  :root {
+    /* Royal Light Theme */
+    --background: 270 50% 98%;
+    --foreground: 270 30% 10%;
+    --card: 270 50% 99%;
+    --card-foreground: 270 30% 10%;
+    --popover: 270 50% 99%;
+    --popover-foreground: 270 30% 10%;
+    --primary: 270 60% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 90% 50%;
+    --secondary-foreground: 270 50% 10%;
+    --muted: 270 30% 95%;
+    --muted-foreground: 270 20% 40%;
+    --accent: 270 50% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 270 30% 85%;
+    --input: 270 30% 85%;
+    --ring: 270 60% 50%;
+    --radius: 0.75rem;
+
+    /* Chart colors - Royal palette */
+    --chart-1: 270 60% 50%;
+    --chart-2: 45 90% 50%;
+    --chart-3: 270 40% 70%;
+    --chart-4: 220 70% 50%;
+    --chart-5: 280 60% 60%;
+  }
+
+  .dark {
+    /* Royal Dark Theme */
+    --background: 270 50% 6%;
+    --foreground: 45 30% 95%;
+    --card: 270 50% 8%;
+    --card-foreground: 45 30% 95%;
+    --popover: 270 50% 10%;
+    --popover-foreground: 45 30% 95%;
+    --primary: 45 90% 50%;
+    --primary-foreground: 270 50% 6%;
+    --secondary: 270 60% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 270 30% 15%;
+    --muted-foreground: 270 20% 60%;
+    --accent: 270 50% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 270 30% 20%;
+    --input: 270 30% 20%;
+    --ring: 45 90% 50%;
+    --radius: 0.75rem;
+
+    /* Chart colors - Royal dark palette */
+    --chart-1: 45 90% 50%;
+    --chart-2: 270 60% 60%;
+    --chart-3: 220 70% 55%;
+    --chart-4: 280 65% 65%;
+    --chart-5: 340 75% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  .royal-text {
+    background: linear-gradient(to right, #9333ea, #a855f7, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gold-text {
+    background: linear-gradient(to right, #d4af37, #fbbf24, #d4af37);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .royal-border {
+    @apply border-2 relative;
+    border-color: rgba(168, 85, 247, 0.3);
+  }
+
+  .gold-border {
+    @apply border-2 relative;
+    border-color: rgba(255, 215, 0, 0.5);
+  }
+
+  .royal-card {
+    @apply bg-card/80 backdrop-blur-xl border rounded-xl;
+    border-color: rgba(168, 85, 247, 0.2);
+    box-shadow:
+      0 0 0 1px rgba(168, 85, 247, 0.1),
+      0 4px 20px rgba(168, 85, 247, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .royal-card-gold {
+    @apply bg-card/80 backdrop-blur-xl border rounded-xl;
+    border-color: rgba(255, 215, 0, 0.3);
+    box-shadow:
+      0 0 0 1px rgba(255, 215, 0, 0.15),
+      0 4px 20px rgba(255, 215, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .royal-button {
+    @apply relative overflow-hidden font-semibold py-3 px-6 rounded-lg transition-all duration-300;
+    background: linear-gradient(to right, #7e22ce, #9333ea, #7e22ce);
+    color: white;
+  }
+
+  .royal-button:hover {
+    box-shadow: 0 10px 40px rgba(168, 85, 247, 0.35);
+    transform: scale(1.02);
+  }
+
+  .royal-button:active {
+    transform: scale(0.98);
+  }
+
+  .gold-button {
+    @apply relative overflow-hidden font-bold py-3 px-6 rounded-lg transition-all duration-300;
+    background: linear-gradient(to right, #c99a6e, #d4af37, #c99a6e);
+    color: #1a0a2e;
+  }
+
+  .gold-button:hover {
+    box-shadow: 0 10px 40px rgba(212, 175, 55, 0.35);
+    transform: scale(1.02);
+  }
+
+  .gold-button:active {
+    transform: scale(0.98);
+  }
+
+  .crown-icon {
+    color: #d4af37;
+  }
+
+  .royal-progress {
+    @apply h-2 rounded-full overflow-hidden;
+    background: rgba(26, 10, 46, 0.5);
+  }
+
+  .royal-progress-bar {
+    @apply h-full rounded-full transition-all duration-500 ease-out;
+    background: linear-gradient(to right, #c99a6e, #d4af37, #c99a6e);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+  }
+
+  /* Floating animation */
+  .float-animation {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Shimmer animation */
+  .shimmer {
+    @apply relative overflow-hidden;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .rounded-inherit {
+    border-radius: inherit;
+  }
+}
+
+/* Keyframe animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes crown-shine {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 20px rgba(212, 175, 55, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(212, 175, 55, 0.6); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+
+.animate-crown-shine {
+  animation: crown-shine 3s ease-in-out infinite;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
+/* PWA and Mobile Optimizations */
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 z-50;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+/* Animation for page transitions */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+/* Custom scrollbar */
+.scrollbar-royal::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-royal::-webkit-scrollbar-track {
+  background: rgba(26, 10, 46, 0.3);
+  border-radius: 9999px;
+}
+
+.scrollbar-royal::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #a855f7, #7e22ce);
+  border-radius: 9999px;
+}
+
+.scrollbar-royal::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #c084fc, #9333ea);
+}
