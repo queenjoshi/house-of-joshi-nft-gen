@@ -139,10 +139,13 @@ export const useCollectionsStore = create<CollectionsState>()(
   persist(
     (set, get) => ({
       deployedCollections: [],
-      addDeployedCollection: (collection) =>
-        set((state) => ({
-          deployedCollections: [...state.deployedCollections, collection],
-        })),
+      addDeployedCollection: (collection) => {
+        set((state) => {
+          const updated = [...state.deployedCollections, collection];
+          console.log('Collections store updated:', updated);
+          return { deployedCollections: updated };
+        });
+      },
       getCollectionsByCreator: (creatorAddress) => {
         const state = get();
         return state.deployedCollections.filter(
@@ -151,11 +154,13 @@ export const useCollectionsStore = create<CollectionsState>()(
       },
       getAllCollections: () => {
         const state = get();
+        console.log('getAllCollections called, returning:', state.deployedCollections);
         return state.deployedCollections;
       },
     }),
     {
       name: 'collections-storage',
+      partialize: (state) => ({ deployedCollections: state.deployedCollections }),
     }
   )
 );

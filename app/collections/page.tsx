@@ -30,10 +30,18 @@ export default function CollectionsPage() {
   const [layout, setLayout] = useState<LayoutMode>('grid');
   const [collections, setCollections] = useState<CollectionCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
   
   const deployedCollections = useCollectionsStore((state) => state.getAllCollections());
 
+  // Ensure hydration is complete before rendering
   useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
     // Convert deployed collections to display format
     const displayCollections: CollectionCard[] = deployedCollections.map((col) => ({
       id: col.id,
@@ -50,7 +58,7 @@ export default function CollectionsPage() {
     
     setCollections(displayCollections);
     setIsLoading(false);
-  }, [deployedCollections]);
+  }, [deployedCollections, isHydrated]);
 
   const getOpenSeaUrl = (contractAddress: string) => {
     return `https://opensea.io/collection/${contractAddress}`;

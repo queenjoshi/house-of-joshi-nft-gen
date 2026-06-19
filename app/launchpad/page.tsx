@@ -491,23 +491,34 @@ export default function CreatePage() {
       // Event signature: CollectionCreated(indexed creator, indexed collection, string name, string symbol)
       let deployedCollectionAddress = receipt.contractAddress;
       
+      console.log('Transaction receipt:', {
+        contractAddress: receipt.contractAddress,
+        logsCount: receipt.logs?.length,
+        status: receipt.status,
+      });
+      
       if (receipt.logs && receipt.logs.length > 0) {
         // The event is emitted by the factory, look for CollectionCreated events
         // Topic: keccak256('CollectionCreated(address,address,string,string)')
         const eventSignature = '0x' + Array.from(new Uint8Array(32)).map(() => '0').join('');
         
         for (const log of receipt.logs) {
+          console.log('Log from:', log.address, 'Factory:', CONTRACTS.FACTORY);
           // Check if this is an event from the factory contract
           if (log.address?.toLowerCase() === CONTRACTS.FACTORY.toLowerCase()) {
+            console.log('Found factory log with topics:', log.topics?.length);
             // The second indexed parameter (collection address) is at topics[2]
             if (log.topics && log.topics.length >= 3) {
               const collectionAddr = '0x' + log.topics[2].slice(-40);
+              console.log('Extracted collection address:', collectionAddr);
               deployedCollectionAddress = collectionAddr;
               break;
             }
           }
         }
       }
+
+      console.log('Final deployed address:', deployedCollectionAddress);
 
       const explorerBase = chainId === 84532
         ? 'https://sepolia.basescan.org'
@@ -520,6 +531,11 @@ export default function CreatePage() {
 
       // Save deployed collection to store
       if (deployedCollectionAddress && deployedCollectionAddress !== 'See transaction details' && address) {
+        console.log('Saving collection to store:', {
+          name: collectionDetails.name,
+          symbol: collectionDetails.symbol,
+          contractAddress: deployedCollectionAddress,
+        });
         addDeployedCollection({
           id: crypto.randomUUID(),
           contractAddress: deployedCollectionAddress,
@@ -532,6 +548,13 @@ export default function CreatePage() {
           creatorAddress: address,
           deployedAt: Date.now(),
           txHash: txHash,
+        });
+        console.log('Collection saved!');
+      } else {
+        console.warn('Collection not saved - missing data:', {
+          hasAddress: !!deployedCollectionAddress,
+          isValidAddress: deployedCollectionAddress !== 'See transaction details',
+          hasCreator: !!address,
         });
       }
 
