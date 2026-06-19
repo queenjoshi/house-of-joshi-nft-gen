@@ -378,18 +378,11 @@ export default function CreatePage() {
     setVerificationUrl(null);
 
     try {
-      // Step 1: Upload all assets to IPFS first
-      console.log('Uploading collection assets to IPFS...');
-      
-      const { generateAndUploadCollectionMetadata } = await import('@/lib/ipfs');
-      
-      const ipfsResults = await generateAndUploadCollectionMetadata(
-        collectionDetails,
-        layers,
-        address
-      );
+      // Use placeholder URIs for now (IPFS upload can be done server-side later)
+      const contractURI = 'ipfs://QmPlaceholderContractURI';
+      const baseURI = 'ipfs://QmPlaceholderBaseURI/';
 
-      console.log('IPFS upload results:', ipfsResults);
+      console.log('Deploying collection...');
 
       // Dynamically import viem functions only when needed (client-side)
       const { encodeFunctionData, parseEther } = await import('viem');
@@ -421,9 +414,9 @@ export default function CreatePage() {
       const collectionParams = {
         name: collectionDetails.name,
         symbol: collectionDetails.symbol,
-        contractURI: ipfsResults.contractURI,
-        baseURI: ipfsResults.baseURI,
-        unrevealedURI: ipfsResults.baseURI, // Use same for now
+        contractURI: contractURI,
+        baseURI: baseURI,
+        unrevealedURI: baseURI, // Use same for now
         maxSupply: BigInt(collectionDetails.maxSupply),
         mintPrice: parseEther(collectionDetails.mintPrice),
         maxMintPerWallet: BigInt(0), // 0 = unlimited
@@ -526,7 +519,7 @@ export default function CreatePage() {
 
       // Attempt automatic verification if we found a contract address
       if (deployedCollectionAddress && deployedCollectionAddress !== 'See transaction details') {
-        await verifyContract(deployedCollectionAddress, chainId as number);
+        await verifyContract(deployedCollectionAddress, chainId as number, txHash);
       }
 
     } catch (error: any) {
