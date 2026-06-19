@@ -36,7 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { useWalletStore, isBaseNetwork, BASE_MAINNET } from '@/lib/store';
+import { useWalletStore, isBaseNetwork, BASE_MAINNET, useCollectionsStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
 import { CONTRACTS } from '@/lib/config';
@@ -200,6 +200,7 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
 
 export default function CreatePage() {
   const { isConnected, address, chainId } = useWalletStore();
+  const addDeployedCollection = useCollectionsStore((state) => state.addDeployedCollection);
   const [currentStep, setCurrentStep] = useState(0);
   const [layers, setLayers] = useState<Layer[]>([]);
   const [collectionDetails, setCollectionDetails] = useState({
@@ -516,6 +517,23 @@ export default function CreatePage() {
       setContractAddress(deployedCollectionAddress || 'See transaction details');
       setDeployTxHash(txHash);
       setVerificationUrl(`${explorerBase}/tx/${txHash}`);
+
+      // Save deployed collection to store
+      if (deployedCollectionAddress && deployedCollectionAddress !== 'See transaction details' && address) {
+        addDeployedCollection({
+          id: crypto.randomUUID(),
+          contractAddress: deployedCollectionAddress,
+          name: collectionDetails.name,
+          symbol: collectionDetails.symbol,
+          coverImage: collectionDetails.coverImage,
+          bannerImage: collectionDetails.bannerImage,
+          maxSupply: collectionDetails.maxSupply,
+          mintPrice: collectionDetails.mintPrice,
+          creatorAddress: address,
+          deployedAt: Date.now(),
+          txHash: txHash,
+        });
+      }
 
       // Attempt automatic verification if we found a contract address
       if (deployedCollectionAddress && deployedCollectionAddress !== 'See transaction details') {
