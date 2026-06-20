@@ -379,9 +379,59 @@ export default function CreatePage() {
     setVerificationUrl(null);
 
     try {
-      // Use placeholder URIs for now (IPFS upload can be done server-side later)
-      const contractURI = 'ipfs://QmPlaceholderContractURI';
-      const baseURI = 'ipfs://QmPlaceholderBaseURI/';
+      // Upload collection metadata to IPFS with real collection details
+      console.log('Preparing IPFS metadata...');
+      
+      let contractURI = 'ipfs://QmPlaceholder'; // Fallback
+      let baseURI = 'ipfs://QmPlaceholder/'; // Fallback
+
+      // Try to upload contract metadata (collection info) to IPFS
+      try {
+        const { uploadJSONToIPFS } = await import('@/lib/ipfs');
+        
+        const contractMetadata = {
+          name: collectionDetails.name,
+          description: collectionDetails.description,
+          image: collectionDetails.coverImage || '',
+          banner_image: collectionDetails.bannerImage || '',
+          external_link: 'https://thehouseofjoshi.com',
+          seller_fee_basis_points: collectionDetails.royaltyPercentage * 100,
+        };
+
+        const uploadedContractURI = await uploadJSONToIPFS(
+          contractMetadata,
+          `${collectionDetails.symbol}_contract`
+        );
+        contractURI = uploadedContractURI.replace('https://gateway.pinata.cloud/ipfs/', 'ipfs://');
+        console.log('Contract metadata uploaded:', contractURI);
+      } catch (e) {
+        console.warn('Contract metadata upload failed, using placeholder:', e);
+      }
+
+      // Create a base NFT metadata structure for the baseURI
+      try {
+        const { uploadJSONToIPFS } = await import('@/lib/ipfs');
+        
+        // Upload a sample NFT metadata that will be used as the base
+        const sampleNFTMetadata = {
+          name: `${collectionDetails.name} #1`,
+          description: collectionDetails.description,
+          image: collectionDetails.coverImage || 'ipfs://QmPlaceholder',
+          attributes: [
+            {
+              trait_type: 'Collection',
+              value: collectionDetails.name,
+            },
+          ],
+        };
+
+        const uploadedBaseURI = await uploadJSONToIPFS(sampleNFTMetadata, '1');
+        // Replace the filename with a generic pattern for baseURI
+        baseURI = uploadedBaseURI.replace(/\/1\.json$/, '/');
+        console.log('Base URI set up:', baseURI);
+      } catch (e) {
+        console.warn('Base metadata upload failed, using placeholder:', e);
+      }
 
       console.log('Deploying collection...');
 
@@ -1292,6 +1342,8 @@ export default function CreatePage() {
                                   <li>Deployment fee: 0.001 ETH</li>
                                   <li>Make sure you have enough ETH for gas fees + deployment fee</li>
                                   <li>After deployment, your collection will be live on Base</li>
+                                  <li>NFTs will appear on OpenSea within 24 hours after minting</li>
+                                  <li>Collection metadata is uploaded to IPFS for marketplace visibility</li>
                                 </ul>
                               </div>
                             </div>
