@@ -208,8 +208,8 @@ ${JSON.stringify(collections, null, 2)}
                             </div>
                           )}
                           
-                          {/* Cover Image with Overlay */}
-                          <div className={`relative w-full overflow-hidden ${collection.bannerImage ? 'h-40' : 'h-48'}`}>
+                          {/* Cover Image - 1:1 Aspect Ratio */}
+                          <div className="relative w-full aspect-square bg-royal-950/50 overflow-hidden">
                             {collection.coverImage ? (
                               <img
                                 src={collection.coverImage}
