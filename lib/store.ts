@@ -28,7 +28,11 @@ export const useWalletStore = create<WalletState>()(
     }),
     {
       name: 'wallet-storage',
-      partialize: (state) => ({ address: state.address }),
+      partialize: (state) => ({ 
+        address: state.address,
+        isConnected: state.isConnected,
+        chainId: state.chainId,
+      }),
     }
   )
 );
