@@ -21,8 +21,9 @@ function DiscordIcon({ className }: { className: string }) {
 
 const FOOTER_LINKS = {
   product: [
-    { label: 'Launchpad', href: '/', external: false },
-    { label: 'Create Collection', href: '/create', external: false },
+    { label: 'Home', href: '/', external: false },
+    { label: 'Collections', href: '/collections', external: false },
+    { label: 'Launchpad', href: '/launchpad', external: false },
     { label: 'Dashboard', href: '/dashboard', external: false },
   ],
   resources: [
