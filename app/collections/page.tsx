@@ -19,6 +19,7 @@ interface CollectionCard {
   name: string;
   symbol: string;
   coverImage: string | null;
+  bannerImage: string | null;
   maxSupply: number;
   minted: number;
   mintPrice: string;
@@ -51,6 +52,7 @@ export default function CollectionsPage() {
       name: col.name,
       symbol: col.symbol,
       coverImage: col.coverImage,
+      bannerImage: col.bannerImage,
       maxSupply: col.maxSupply,
       minted: 0,
       mintPrice: col.mintPrice,
@@ -195,8 +197,19 @@ ${JSON.stringify(collections, null, 2)}
                     >
                       <Link href={`/collections/${collection.contractAddress}`}>
                         <Card className="royal-card cursor-pointer h-full overflow-hidden hover:shadow-royal transition-all duration-300">
-                          {/* Cover Image */}
-                          <div className="relative w-full h-48 bg-royal-950/50 overflow-hidden">
+                          {/* Banner Image */}
+                          {collection.bannerImage && (
+                            <div className="relative w-full h-32 bg-royal-950/50 overflow-hidden">
+                              <img
+                                src={collection.bannerImage}
+                                alt={`${collection.name} banner`}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Cover Image with Overlay */}
+                          <div className={`relative w-full overflow-hidden ${collection.bannerImage ? 'h-40' : 'h-48'}`}>
                             {collection.coverImage ? (
                               <img
                                 src={collection.coverImage}
@@ -318,8 +331,19 @@ ${JSON.stringify(collections, null, 2)}
                     >
                       <Link href={`/collections/${collection.contractAddress}`}>
                         <Card className="royal-card cursor-pointer hover:shadow-royal transition-all duration-300">
-                          <CardContent className="p-4">
-                            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                          <CardContent className="p-0">
+                            {/* Banner Image */}
+                            {collection.bannerImage && (
+                              <div className="relative w-full h-24 md:h-32 bg-royal-950/50 overflow-hidden">
+                                <img
+                                  src={collection.bannerImage}
+                                  alt={`${collection.name} banner`}
+                                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="p-4 flex flex-col md:flex-row items-start md:items-center gap-4">
                               {/* Cover Image */}
                               <div className="w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden flex-shrink-0">
                                 {collection.coverImage ? (
