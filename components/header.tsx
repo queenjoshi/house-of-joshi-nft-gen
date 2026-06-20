@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
   { href: '/collections', label: 'Collections', icon: Compass },
-  { href: '/launchpad', label: 'Create Collection', icon: Sparkles },
+  { href: '/launchpad', label: 'Launchpad', icon: Sparkles },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
 
