@@ -1018,50 +1018,56 @@ export default function CreatePage() {
                             {layer.traits.length > 0 && (
                               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3 mt-4">
                                 {layer.traits.map((trait) => (
-                                  <div
-                                    key={trait.id}
-                                    className="relative group aspect-square rounded-lg overflow-hidden border border-royal-500/30 hover:border-gold-500/50 transition-colors"
-                                  >
-                                    <img
-                                      src={trait.preview}
-                                      alt={trait.name}
-                                      className="w-full h-full object-cover"
+                            <div
+                              key={trait.id}
+                              className="relative group aspect-square rounded-lg overflow-hidden border border-royal-500/30 hover:border-gold-500/50 transition-colors bg-gradient-to-br from-royal-500/10 to-amber-500/10"
+                            >
+                              {trait.preview ? (
+                                <img
+                                  src={trait.preview}
+                                  alt={trait.name}
+                                  className="w-full h-full object-contain"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute bottom-0 left-0 right-0 p-2">
+                                  <input
+                                    value={trait.name}
+                                    onChange={(e) =>
+                                      updateTrait(layer.id, trait.id, {
+                                        name: e.target.value,
+                                      })
+                                    }
+                                    className="w-full bg-transparent text-white text-xs font-medium border-b border-white/20 focus:border-gold-500 outline-none"
+                                  />
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <span className="text-xs text-white/60">Rarity:</span>
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      max={100}
+                                      value={trait.rarity}
+                                      onChange={(e) =>
+                                        updateTrait(layer.id, trait.id, {
+                                          rarity: parseInt(e.target.value) || 1,
+                                        })
+                                      }
+                                      className="w-12 h-5 text-xs bg-white/10 border-0"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                                        <input
-                                          value={trait.name}
-                                          onChange={(e) =>
-                                            updateTrait(layer.id, trait.id, {
-                                              name: e.target.value,
-                                            })
-                                          }
-                                          className="w-full bg-transparent text-white text-xs font-medium border-b border-white/20 focus:border-gold-500 outline-none"
-                                        />
-                                        <div className="flex items-center gap-1 mt-1">
-                                          <span className="text-xs text-white/60">Rarity:</span>
-                                          <Input
-                                            type="number"
-                                            min={1}
-                                            max={100}
-                                            value={trait.rarity}
-                                            onChange={(e) =>
-                                              updateTrait(layer.id, trait.id, {
-                                                rarity: parseInt(e.target.value) || 1,
-                                              })
-                                            }
-                                            className="w-12 h-5 text-xs bg-white/10 border-0"
-                                          />
-                                        </div>
-                                      </div>
-                                      <button
-                                        onClick={() => removeTrait(layer.id, trait.id)}
-                                        className="absolute top-1 right-1 p-1 rounded-full bg-destructive/80 text-white opacity-0 group-hover:bg-destructive transition-opacity"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
-                                    </div>
                                   </div>
+                                </div>
+                                <button
+                                  onClick={() => removeTrait(layer.id, trait.id)}
+                                  className="absolute top-1 right-1 p-1 rounded-full bg-destructive/80 text-white opacity-0 group-hover:bg-destructive transition-opacity"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
                                 ))}
                               </div>
                             )}
@@ -1191,11 +1197,17 @@ export default function CreatePage() {
                               className="relative group"
                             >
                               <div className="aspect-square rounded-xl overflow-hidden border border-royal-500/30 bg-royal-950/50">
-                                <img
-                                  src={nft}
-                                  alt={`Preview ${i + 1}`}
-                                  className="w-full h-full object-contain"
-                                />
+                                {nft ? (
+                                  <img
+                                    src={nft}
+                                    alt={`Preview ${i + 1}`}
+                                    className="w-full h-full object-contain"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
+                                  </div>
+                                )}
                               </div>
                               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-2">
                                 <Button
