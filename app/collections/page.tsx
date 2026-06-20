@@ -101,8 +101,8 @@ ${JSON.stringify(collections, null, 2)}
               className="mb-6"
             >
               <h1 className="font-display text-4xl md:text-5xl font-bold mb-3">
-                <span className="block mb-2">Explore Collections</span>
-                <span className="text-amber-400">By House of Joshi</span>
+                <span className="block mb-2">NFT Collections</span>
+                <span className="text-amber-400">Created on House of Joshi</span>
               </h1>
               <p className="text-muted-foreground text-lg max-w-2xl">
                 Discover and mint from all collections created through the House of Joshi Launchpad.
