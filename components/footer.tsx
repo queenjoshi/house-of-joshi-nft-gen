@@ -24,6 +24,7 @@ const FOOTER_LINKS = {
     { label: 'Home', href: '/', external: false },
     { label: 'Collections', href: '/collections', external: false },
     { label: 'Launchpad', href: '/launchpad', external: false },
+    { label: 'Referral', href: '/referral', external: false },
     { label: 'Dashboard', href: '/dashboard', external: false },
   ],
   resources: [

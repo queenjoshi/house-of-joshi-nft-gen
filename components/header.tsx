@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Compass,
   HelpCircle,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +32,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
   { href: '/collections', label: 'Collections', icon: Compass },
   { href: '/launchpad', label: 'Launchpad', icon: Sparkles },
+  { href: '/referral', label: 'Referral', icon: Users },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
 

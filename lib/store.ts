@@ -194,6 +194,46 @@ export const useUIStore = create<UIState>()(
   )
 );
 
+// Referral Store
+interface ReferralState {
+  referralCode: string | null;
+  referralLink: string | null;
+  referralRewards: number;
+  referralCount: number;
+  setReferralCode: (code: string) => void;
+  setReferralRewards: (rewards: number) => void;
+  setReferralCount: (count: number) => void;
+  generateReferralCode: (address: string) => string;
+}
+
+export const useReferralStore = create<ReferralState>()(
+  persist(
+    (set, get) => ({
+      referralCode: null,
+      referralLink: null,
+      referralRewards: 0,
+      referralCount: 0,
+      setReferralCode: (code) => set({ referralCode: code }),
+      setReferralRewards: (rewards) => set({ referralRewards: rewards }),
+      setReferralCount: (count) => set({ referralCount: count }),
+      generateReferralCode: (address: string) => {
+        // Generate referral code from wallet address (first 8 chars + last 4 chars)
+        const code = (address.slice(2, 8) + address.slice(-4)).toUpperCase();
+        set({ referralCode: code, referralLink: `${typeof window !== 'undefined' ? window.location.origin : ''}/ref/${code}` });
+        return code;
+      },
+    }),
+    {
+      name: 'referral-storage',
+      partialize: (state) => ({ 
+        referralCode: state.referralCode,
+        referralRewards: state.referralRewards,
+        referralCount: state.referralCount,
+      }),
+    }
+  )
+);
+
 // Base Network Configuration
 export const BASE_MAINNET = {
   id: 8453,
