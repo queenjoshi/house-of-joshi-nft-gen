@@ -407,8 +407,8 @@ export default function CreatePage() {
         }
       }
 
-      // Set deployment fee to 0.0001 ETH (convert to hex string for transaction)
-      const deploymentFeeWei = parseEther('0.0001');
+      // Set deployment fee to 0.000001 ETH for testing (convert to hex string for transaction)
+      const deploymentFeeWei = parseEther('0.000001');
       const deploymentFee = '0x' + deploymentFeeWei.toString(16);
 
       // Prepare collection parameters with IPFS URIs
@@ -1289,7 +1289,7 @@ export default function CreatePage() {
                               <div className="text-sm">
                                 <p className="font-medium mb-1">Deployment Checklist</p>
                                 <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                                  <li>Deployment fee: 0.0001 ETH</li>
+                                  <li>Deployment fee: 0.000001 ETH</li>
                                   <li>Make sure you have enough ETH for gas fees + deployment fee</li>
                                   <li>After deployment, your collection will be live on Base</li>
                                 </ul>
