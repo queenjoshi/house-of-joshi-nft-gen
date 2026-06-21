@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useWalletStore, useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { useReownModal } from '@/hooks/useReownModal';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
@@ -38,8 +39,9 @@ const NAV_LINKS = [
 
 export function Header() {
   const { theme, setTheme } = useTheme();
-  const { address, chainId, isConnected, disconnect } = useWalletStore();
+  const { address, chainId, isConnected, disconnect: disconnectStore, setAddress, setChainId } = useWalletStore();
   const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
+  const { openModal, disconnect: disconnectReown, getAddress, getChainId, isReady } = useReownModal();
   const [mounted, setMounted] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -47,16 +49,45 @@ export function Header() {
     setMounted(true);
   }, []);
 
+  // Sync Reown wallet state with store
+  useEffect(() => {
+    if (!isReady) return;
+
+    const checkConnection = async () => {
+      const addr = getAddress();
+      const chain = getChainId();
+      
+      if (addr && chain) {
+        setAddress(addr);
+        setChainId(chain);
+      }
+    };
+
+    checkConnection();
+
+    // Set up interval to check connection state
+    const interval = setInterval(checkConnection, 2000);
+
+    return () => clearInterval(interval);
+  }, [isReady, getAddress, getChainId, setAddress, setChainId]);
+
   const handleConnectWallet = async () => {
     setIsConnecting(true);
     try {
-      if (typeof window !== 'undefined' && (window as any).reownAppKit) {
-        (window as any).reownAppKit.open?.();
-      }
+      openModal();
     } catch (error) {
       console.error('Failed to connect wallet:', error);
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnectReown();
+      disconnectStore();
+    } catch (error) {
+      console.error('Failed to disconnect wallet:', error);
     }
   };
 
@@ -178,7 +209,7 @@ export function Header() {
                   </span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-royal-500/20" />
-                <DropdownMenuItem onClick={disconnect} className="text-destructive focus:text-destructive text-xs md:text-sm">
+                <DropdownMenuItem onClick={handleDisconnect} className="text-destructive focus:text-destructive text-xs md:text-sm">
                   Disconnect
                 </DropdownMenuItem>
               </DropdownMenuContent>
