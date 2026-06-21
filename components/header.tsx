@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { WalletModal } from '@/components/wallet-modal';
 import { useWalletStore, useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +43,7 @@ export function Header() {
   const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
   const [mounted, setMounted] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -61,37 +63,12 @@ export function Header() {
             useWalletStore.getState().setAddress(accounts[0]);
             useWalletStore.getState().setChainId(parseInt(chainIdHex, 16));
           }
+          setIsConnecting(false);
           return;
         }
 
-        // If no injected provider, show wallet options modal
-        // Use Reown WalletConnect modal link
-        const reownProjectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID;
-        if (!reownProjectId) {
-          console.error('Reown Project ID not configured');
-          return;
-        }
-
-        // Open WalletConnect modal
-        const walletConnectUrl = `https://cloud.walletconnect.com/app?projectId=${reownProjectId}`;
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-          // On mobile, redirect to wallet connect
-          window.location.href = walletConnectUrl;
-        } else {
-          // On desktop, open in a popup
-          const width = 600;
-          const height = 700;
-          const left = (window.innerWidth - width) / 2;
-          const top = (window.innerHeight - height) / 2;
-          
-          window.open(
-            walletConnectUrl,
-            'WalletConnect',
-            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,menubar=no,toolbar=no`
-          );
-        }
+        // If no injected provider, show wallet modal
+        setWalletModalOpen(true);
       }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
@@ -262,6 +239,9 @@ export function Header() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Wallet Modal */}
+      <WalletModal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
     </header>
   );
 }
