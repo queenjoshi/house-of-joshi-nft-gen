@@ -737,9 +737,9 @@ export default function CreatePage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="name">Collection Name</Label>
+                        <Label htmlFor="name" className="text-sm md:text-base">Collection Name</Label>
                         <Input
                           id="name"
                           placeholder="e.g., Cyber Royals"
@@ -750,11 +750,11 @@ export default function CreatePage() {
                               name: e.target.value,
                             })
                           }
-                          className="royal-input"
+                          className="royal-input text-sm md:text-base"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="symbol">Symbol</Label>
+                        <Label htmlFor="symbol" className="text-sm md:text-base">Symbol</Label>
                         <Input
                           id="symbol"
                           placeholder="e.g., CR"
@@ -766,7 +766,7 @@ export default function CreatePage() {
                               symbol: e.target.value.toUpperCase(),
                             })
                           }
-                          className="royal-input"
+                          className="royal-input text-sm md:text-base"
                         />
                       </div>
                     </div>
@@ -960,22 +960,22 @@ export default function CreatePage() {
               {/* Step 2: Layer Setup */}
               {currentStep === 1 && (
                 <div className="space-y-4 md:space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
                     <Card className="royal-card text-center">
-                      <CardContent className="pt-4 md:pt-6">
-                        <div className="text-xl md:text-2xl font-bold gold-text">{layers.length}</div>
+                      <CardContent className="pt-3 md:pt-4 pb-3 md:pb-4 px-2 md:px-6">
+                        <div className="text-lg md:text-2xl font-bold gold-text">{layers.length}</div>
                         <div className="text-xs md:text-sm text-muted-foreground">Layers</div>
                       </CardContent>
                     </Card>
                     <Card className="royal-card text-center">
-                      <CardContent className="pt-4 md:pt-6">
-                        <div className="text-xl md:text-2xl font-bold gold-text">{totalTraits}</div>
+                      <CardContent className="pt-3 md:pt-4 pb-3 md:pb-4 px-2 md:px-6">
+                        <div className="text-lg md:text-2xl font-bold gold-text">{totalTraits}</div>
                         <div className="text-xs md:text-sm text-muted-foreground">Traits</div>
                       </CardContent>
                     </Card>
                     <Card className="royal-card text-center">
-                      <CardContent className="pt-4 md:pt-6">
-                        <div className="text-xl md:text-2xl font-bold gold-text">
+                      <CardContent className="pt-3 md:pt-4 pb-3 md:pb-4 px-2 md:px-6">
+                        <div className="text-lg md:text-2xl font-bold gold-text">
                           {totalCombinations > 1000000
                             ? `${(totalCombinations / 1000000).toFixed(1)}M`
                             : totalCombinations.toLocaleString()}
@@ -987,7 +987,7 @@ export default function CreatePage() {
 
                   <Button
                     onClick={addLayer}
-                    className="w-full gold-button h-12 md:h-14 text-base md:text-lg"
+                    className="w-full gold-button h-10 md:h-12 lg:h-14 text-sm md:text-base lg:text-lg"
                   >
                     <Plus className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                     Add Layer
@@ -1066,7 +1066,7 @@ export default function CreatePage() {
                             </Label>
 
                             {layer.traits.length > 0 && (
-                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3 mt-4">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 mt-4">
                                 {layer.traits.map((trait) => (
                             <div
                               key={trait.id}
@@ -1219,9 +1219,9 @@ export default function CreatePage() {
                         <Button
                           onClick={handleGenerate}
                           disabled={layers.length === 0 || totalTraits === 0}
-                          className="w-full gold-button h-14 text-lg"
+                          className="w-full gold-button h-10 md:h-12 lg:h-14 text-sm md:text-base lg:text-lg"
                         >
-                          <Shuffle className="mr-2 h-5 w-5" />
+                          <Shuffle className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                           Generate Preview
                         </Button>
 
@@ -1236,8 +1236,8 @@ export default function CreatePage() {
                     {/* Preview Grid */}
                     {showPreview && previewNFTs.length > 0 && (
                       <div className="mt-6">
-                        <h3 className="font-semibold mb-4">Preview NFTs</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4">
+                        <h3 className="font-semibold mb-4 text-sm md:text-base">Preview NFTs</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-4">
                           {previewNFTs.map((nft, i) => (
                             <motion.div
                               key={i}
