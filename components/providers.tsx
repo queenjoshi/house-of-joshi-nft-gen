@@ -31,7 +31,7 @@ export const initializeReownAppKit = () => {
         name: 'House of Joshi',
         description: 'Create & Launch NFT Collections on Base',
         url: typeof window !== 'undefined' ? window.location.origin : 'https://thehouseofjoshi.com',
-        icons: ['/joshi-logo.png'],
+        icons: ['https://thehouseofjoshi.com/joshi-logo.png'],
       },
       features: {
         analytics: true,
