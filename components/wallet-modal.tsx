@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, Loader2 } from 'lucide-react';
+import { Copy, Check, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -10,6 +10,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useWalletStore } from '@/lib/store';
+
+// Wallet detection utilities
+const detectWallets = () => {
+  if (typeof window === 'undefined') return {};
+  
+  return {
+    metamask: !!(window as any).ethereum?.isMetaMask,
+    rabby: !!(window as any).ethereum?.isRabby,
+    trust: !!(window as any).ethereum?.isTrust,
+    coinbase: !!(window as any).ethereum?.isCoinbaseWallet,
+    rainbow: !!(window as any).ethereum?.isRainbow,
+    generic: !!(window as any).ethereum && !!(window as any).ethereum.request,
+  };
+};
 
 interface WalletOption {
   id: string;
@@ -66,7 +80,19 @@ export function WalletModal({ isOpen, onClose }: WalletModalProps) {
   const [copied, setCopied] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string>('');
+  const [installedWallets, setInstalledWallets] = useState<string[]>([]);
   const { setAddress, setChainId } = useWalletStore();
+
+  // Detect installed wallets on mount and when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const detected = detectWallets();
+      const installed = Object.entries(detected)
+        .filter(([_, isInstalled]) => isInstalled)
+        .map(([walletId, _]) => walletId);
+      setInstalledWallets(installed);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     // Listen for wallet connection events
@@ -100,8 +126,9 @@ export function WalletModal({ isOpen, onClose }: WalletModalProps) {
 
       const ethereum = (window as any).ethereum;
       const wallet = WALLET_OPTIONS.find((w) => w.id === walletId);
+      const isWalletInstalled = installedWallets.includes(walletId);
 
-      if (!ethereum) {
+      if (!ethereum || !isWalletInstalled) {
         // Wallet not installed, try deep link on mobile first
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
@@ -127,7 +154,7 @@ export function WalletModal({ isOpen, onClose }: WalletModalProps) {
         return;
       }
 
-      // Request account access
+      // Request account access from the installed wallet
       const accounts = await ethereum.request({
         method: 'eth_requestAccounts',
       });
@@ -173,49 +200,71 @@ export function WalletModal({ isOpen, onClose }: WalletModalProps) {
             </div>
           )}
 
-          {/* Wallet Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {WALLET_OPTIONS.map((wallet) => (
-              <button
-                key={wallet.id}
-                onClick={() => handleConnectWallet(wallet.id)}
-                disabled={connecting}
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-royal-500/30 hover:bg-royal-500/10 hover:border-gold-500/50 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {connecting ? (
-                  <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
-                ) : (
-                  <>
-                    <span className="text-4xl group-hover:scale-110 transition-transform group-disabled:scale-100">
-                      {wallet.icon}
-                    </span>
-                    <span className="text-sm font-medium text-center">{wallet.name}</span>
-                  </>
+          {/* Wallet Grid - Show Installed Wallets */}
+          {installedWallets.length > 0 ? (
+            <>
+              <p className="text-xs text-muted-foreground text-center">
+                ✨ Detected {installedWallets.length} wallet{installedWallets.length !== 1 ? 's' : ''} installed
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {WALLET_OPTIONS.filter((w) => installedWallets.includes(w.id)).map(
+                  (wallet) => (
+                    <button
+                      key={wallet.id}
+                      onClick={() => handleConnectWallet(wallet.id)}
+                      disabled={connecting}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 border-gold-500/50 hover:bg-gold-500/10 hover:border-gold-400 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed bg-gold-500/5"
+                    >
+                      {connecting ? (
+                        <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+                      ) : (
+                        <>
+                          <span className="text-4xl group-hover:scale-110 transition-transform group-disabled:scale-100">
+                            {wallet.icon}
+                          </span>
+                          <span className="text-sm font-medium text-center text-gold-400">
+                            {wallet.name}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  )
                 )}
-              </button>
-            ))}
-          </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              No wallets detected. Install one to continue.
+            </p>
+          )}
 
           {/* Info Section */}
           <div className="space-y-3">
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground mb-2">
-                Don't have a wallet installed?
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {WALLET_OPTIONS.map((wallet) => (
-                  <Button
-                    key={`download-${wallet.id}`}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(wallet.downloadUrl, '_blank')}
-                    className="text-xs h-8 royal-border"
-                  >
-                    Get {wallet.name}
-                  </Button>
-                ))}
+            {/* Download Section - Show Non-Installed Wallets */}
+            {installedWallets.length < WALLET_OPTIONS.length && (
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Don't have a wallet? Get one:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {WALLET_OPTIONS.filter((w) => !installedWallets.includes(w.id)).map(
+                    (wallet) => (
+                      <Button
+                        key={`download-${wallet.id}`}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(wallet.downloadUrl, '_blank')}
+                        className="text-xs h-8 royal-border flex items-center gap-1"
+                      >
+                        <Download className="h-3 w-3" />
+                        <span className="hidden sm:inline">{wallet.name}</span>
+                        <span className="sm:hidden">{wallet.name.split(' ')[0]}</span>
+                      </Button>
+                    )
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-royal-500/20" />
