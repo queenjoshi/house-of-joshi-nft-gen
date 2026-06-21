@@ -16,6 +16,11 @@ export const initializeReownAppKit = () => {
   if (typeof window === 'undefined' || appKitInstance) return;
   
   try {
+    if (!projectId) {
+      console.error('NEXT_PUBLIC_REOWN_PROJECT_ID is not set');
+      return null;
+    }
+
     const ethersAdapter = new EthersAdapter();
     
     const appKit = createAppKit({
@@ -43,6 +48,7 @@ export const initializeReownAppKit = () => {
     // Expose globally for access
     (window as any).reownAppKit = appKit;
     
+    console.log('Reown AppKit initialized successfully');
     return appKit;
   } catch (error) {
     console.error('Failed to initialize Reown AppKit:', error);
