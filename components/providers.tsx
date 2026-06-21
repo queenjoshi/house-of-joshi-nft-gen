@@ -32,6 +32,11 @@ export const initializeReownAppKit = () => {
         analytics: true,
         allWallets: true,
       },
+      themeMode: 'dark',
+      themeVariables: {
+        '--w3m-color-mix': '#d4a574',
+        '--w3m-color-mix-strength': 40,
+      },
     });
     
     appKitInstance = appKit;

@@ -25,7 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { WalletModal } from '@/components/wallet-modal';
 import { useWalletStore, useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +42,6 @@ export function Header() {
   const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
   const [mounted, setMounted] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [walletModalOpen, setWalletModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -52,35 +50,11 @@ export function Header() {
   const handleConnectWallet = async () => {
     setIsConnecting(true);
     try {
-      if (typeof window !== 'undefined') {
-        // First check if Reown AppKit is available
-        if ((window as any).reownAppKit) {
-          (window as any).reownAppKit.open?.();
-          setIsConnecting(false);
-          return;
-        }
-
-        // Fallback to MetaMask if available
-        if ((window as any).ethereum) {
-          const accounts = await (window as any).ethereum.request({
-            method: 'eth_requestAccounts',
-          });
-          if (accounts[0]) {
-            const chainIdHex = await (window as any).ethereum.request({ method: 'eth_chainId' });
-            useWalletStore.getState().setAddress(accounts[0]);
-            useWalletStore.getState().setChainId(parseInt(chainIdHex, 16));
-          }
-          setIsConnecting(false);
-          return;
-        }
-
-        // Show custom wallet modal if neither is available
-        setWalletModalOpen(true);
+      if (typeof window !== 'undefined' && (window as any).reownAppKit) {
+        (window as any).reownAppKit.open?.();
       }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      // Fallback to custom modal on error
-      setWalletModalOpen(true);
     } finally {
       setIsConnecting(false);
     }
@@ -249,8 +223,6 @@ export function Header() {
         )}
       </AnimatePresence>
 
-      {/* Wallet Modal */}
-      <WalletModal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} />
     </header>
   );
 }
