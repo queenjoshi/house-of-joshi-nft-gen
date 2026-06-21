@@ -10,13 +10,10 @@ export function useReownModal() {
     // Try to get appKit from window if it exists
     const getAppKit = async () => {
       try {
-        console.log('Checking for reownAppKit...');
         if ((window as any).reownAppKit) {
-          console.log('Found reownAppKit:', (window as any).reownAppKit);
           setAppKit((window as any).reownAppKit);
           setIsReady(true);
         } else {
-          console.warn('reownAppKit not found on window object');
           // Retry after a delay
           setTimeout(getAppKit, 500);
         }
@@ -32,16 +29,10 @@ export function useReownModal() {
   }, []);
 
   const openModal = useCallback(() => {
-    console.log('openModal called, appKit:', appKit, 'window.reownAppKit:', (window as any).reownAppKit);
     if (appKit?.open) {
-      console.log('Opening modal via appKit.open()');
       appKit.open();
     } else if ((window as any).reownAppKit?.open) {
-      console.log('Opening modal via window.reownAppKit.open()');
       (window as any).reownAppKit.open();
-    } else {
-      console.error('Cannot open modal - appKit not available');
-      alert('Wallet connection is not available. Please refresh the page and try again.');
     }
   }, [appKit]);
 
