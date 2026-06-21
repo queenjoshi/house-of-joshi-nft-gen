@@ -53,7 +53,14 @@ export function Header() {
     setIsConnecting(true);
     try {
       if (typeof window !== 'undefined') {
-        // Try MetaMask first
+        // First check if Reown AppKit is available
+        if ((window as any).reownAppKit) {
+          (window as any).reownAppKit.open?.();
+          setIsConnecting(false);
+          return;
+        }
+
+        // Fallback to MetaMask if available
         if ((window as any).ethereum) {
           const accounts = await (window as any).ethereum.request({
             method: 'eth_requestAccounts',
@@ -67,11 +74,13 @@ export function Header() {
           return;
         }
 
-        // If no injected provider, show wallet modal
+        // Show custom wallet modal if neither is available
         setWalletModalOpen(true);
       }
     } catch (error) {
       console.error('Failed to connect wallet:', error);
+      // Fallback to custom modal on error
+      setWalletModalOpen(true);
     } finally {
       setIsConnecting(false);
     }

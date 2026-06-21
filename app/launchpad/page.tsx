@@ -41,13 +41,6 @@ import { cn } from '@/lib/utils';
 import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
 import { CONTRACTS } from '@/lib/config';
 
-// Declare window.ethereum for Web3 wallet
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
 interface Layer {
   id: string;
   name: string;
@@ -446,7 +439,7 @@ export default function CreatePage() {
       // Request to switch to correct chain if needed
       const targetChainId = chainId === 84532 ? '0x14a34' : '0x2105'; // Base Sepolia or Base Mainnet
       try {
-        await window.ethereum.request({
+        await (window.ethereum as any).request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: targetChainId }],
         });
@@ -497,7 +490,7 @@ export default function CreatePage() {
       };
 
       // Send transaction via wallet
-      const txHash = await window.ethereum.request({
+      const txHash = await (window.ethereum as any).request({
         method: 'eth_sendTransaction',
         params: [txParams],
       });
@@ -512,7 +505,7 @@ export default function CreatePage() {
 
       while (!receipt && Date.now() - startTime < maxWaitTime) {
         try {
-          const result = await window.ethereum.request({
+          const result = await (window.ethereum as any).request({
             method: 'eth_getTransactionReceipt',
             params: [txHash],
           });

@@ -275,8 +275,8 @@ export const isBaseNetwork = (chainId: number | null) => {
 };
 
 // Setup wallet event listeners
-if (typeof window !== 'undefined' && window.ethereum) {
-  window.ethereum.on('accountsChanged', (accounts: string[]) => {
+if (typeof window !== 'undefined' && (window as any).ethereum) {
+  (window as any).ethereum.on('accountsChanged', (accounts: string[]) => {
     const store = useWalletStore.getState();
     if (accounts.length === 0) {
       store.disconnect();
@@ -285,12 +285,12 @@ if (typeof window !== 'undefined' && window.ethereum) {
     }
   });
 
-  window.ethereum.on('chainChanged', (chainId: string) => {
+  (window as any).ethereum.on('chainChanged', (chainId: string) => {
     const store = useWalletStore.getState();
     store.setChainId(parseInt(chainId, 16));
   });
 
-  window.ethereum.on('disconnect', () => {
+  (window as any).ethereum.on('disconnect', () => {
     const store = useWalletStore.getState();
     store.disconnect();
   });
