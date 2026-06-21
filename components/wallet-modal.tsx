@@ -16,6 +16,7 @@ interface WalletOption {
   name: string;
   icon: string;
   downloadUrl: string;
+  deepLink?: (origin: string) => string;
 }
 
 const WALLET_OPTIONS: WalletOption[] = [
@@ -24,24 +25,35 @@ const WALLET_OPTIONS: WalletOption[] = [
     name: 'MetaMask',
     icon: '🦊',
     downloadUrl: 'https://metamask.io',
+    deepLink: (origin) => `https://metamask.app.link/dapp/${origin.replace(/^https?:\/\//, '')}`,
+  },
+  {
+    id: 'rabby',
+    name: 'Rabby Wallet',
+    icon: '🐰',
+    downloadUrl: 'https://rabby.io',
+    deepLink: (origin) => `https://app.rabby.io?dapp=${encodeURIComponent(origin)}`,
   },
   {
     id: 'trust',
     name: 'Trust Wallet',
     icon: '🔷',
     downloadUrl: 'https://trustwallet.com',
+    deepLink: (origin) => `https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(origin)}`,
   },
   {
     id: 'coinbase',
     name: 'Coinbase Wallet',
     icon: '◎',
     downloadUrl: 'https://www.coinbase.com/wallet',
+    deepLink: (origin) => `https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(origin)}`,
   },
   {
     id: 'rainbow',
     name: 'Rainbow',
     icon: '🌈',
     downloadUrl: 'https://rainbow.me',
+    deepLink: (origin) => `https://rnbw.to/dapp?url=${encodeURIComponent(origin)}`,
   },
 ];
 
@@ -87,14 +99,30 @@ export function WalletModal({ isOpen, onClose }: WalletModalProps) {
       if (typeof window === 'undefined') return;
 
       const ethereum = (window as any).ethereum;
+      const wallet = WALLET_OPTIONS.find((w) => w.id === walletId);
 
       if (!ethereum) {
-        // Wallet not installed, open download URL
-        const wallet = WALLET_OPTIONS.find((w) => w.id === walletId);
-        if (wallet) {
+        // Wallet not installed, try deep link on mobile first
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile && wallet?.deepLink) {
+          // Try deep link to mobile wallet
+          const origin = window.location.origin;
+          const deepLinkUrl = wallet.deepLink(origin);
+          window.location.href = deepLinkUrl;
+          
+          // Fallback to download after a delay if deep link doesn't work
+          setTimeout(() => {
+            if (wallet) {
+              window.open(wallet.downloadUrl, '_blank');
+            }
+          }, 3000);
+        } else if (wallet) {
+          // Desktop or no deep link available - open download URL
           window.open(wallet.downloadUrl, '_blank');
         }
-        setError('Wallet not installed. Download link opened.');
+        
+        setError('Wallet not installed. Opening download link...');
         setConnecting(false);
         return;
       }
@@ -146,7 +174,7 @@ export function WalletModal({ isOpen, onClose }: WalletModalProps) {
           )}
 
           {/* Wallet Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {WALLET_OPTIONS.map((wallet) => (
               <button
                 key={wallet.id}
@@ -174,14 +202,14 @@ export function WalletModal({ isOpen, onClose }: WalletModalProps) {
               <p className="text-xs text-muted-foreground mb-2">
                 Don't have a wallet installed?
               </p>
-              <div className="flex gap-2">
-                {WALLET_OPTIONS.slice(0, 2).map((wallet) => (
+              <div className="grid grid-cols-2 gap-2">
+                {WALLET_OPTIONS.map((wallet) => (
                   <Button
                     key={`download-${wallet.id}`}
                     variant="outline"
                     size="sm"
                     onClick={() => window.open(wallet.downloadUrl, '_blank')}
-                    className="flex-1 text-xs h-8 royal-border"
+                    className="text-xs h-8 royal-border"
                   >
                     Get {wallet.name}
                   </Button>
