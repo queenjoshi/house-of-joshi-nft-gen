@@ -50,7 +50,6 @@ export function Header() {
   const handleConnectWallet = async () => {
     setIsConnecting(true);
     try {
-      // Try to detect wallet provider with deep linking support
       if (typeof window !== 'undefined') {
         // Try MetaMask first
         if ((window as any).ethereum) {
@@ -62,24 +61,36 @@ export function Header() {
             useWalletStore.getState().setAddress(accounts[0]);
             useWalletStore.getState().setChainId(parseInt(chainIdHex, 16));
           }
+          return;
+        }
+
+        // If no injected provider, show wallet options modal
+        // Use Reown WalletConnect modal link
+        const reownProjectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID;
+        if (!reownProjectId) {
+          console.error('Reown Project ID not configured');
+          return;
+        }
+
+        // Open WalletConnect modal
+        const walletConnectUrl = `https://cloud.walletconnect.com/app?projectId=${reownProjectId}`;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          // On mobile, redirect to wallet connect
+          window.location.href = walletConnectUrl;
         } else {
-          // Deep link to wallet apps if no injected provider
-          const isAndroid = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          // On desktop, open in a popup
+          const width = 600;
+          const height = 700;
+          const left = (window.innerWidth - width) / 2;
+          const top = (window.innerHeight - height) / 2;
           
-          if (isAndroid) {
-            // For mobile, try Reown/WalletConnect modal
-            const reownProjectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID;
-            if (reownProjectId) {
-              const deepLink = `https://cloud.walletconnect.com/app?projectId=${reownProjectId}`;
-              window.location.href = deepLink;
-            } else {
-              // Fallback to MetaMask deep link
-              const deepLink = `https://metamask.app.link/dapp/${typeof window !== 'undefined' ? window.location.host : ''}`;
-              window.location.href = deepLink;
-            }
-          } else {
-            console.warn('No wallet provider found. Please install MetaMask or another Web3 wallet.');
-          }
+          window.open(
+            walletConnectUrl,
+            'WalletConnect',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,menubar=no,toolbar=no`
+          );
         }
       }
     } catch (error) {
