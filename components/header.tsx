@@ -64,15 +64,19 @@ export function Header() {
           }
         } else {
           // Deep link to wallet apps if no injected provider
-          const deepLinks = {
-            metamask: `https://metamask.app.link/dapp/${typeof window !== 'undefined' ? window.location.host : ''}`,
-            walletconnect: `https://cloud.walletconnect.com/app`,
-            coinbase: `https://go.cb-w.com/dapp?url=${typeof window !== 'undefined' ? window.location.href : ''}`,
-          };
+          const isAndroid = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
           
-          // Try MetaMask deep link first
-          if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            window.location.href = deepLinks.metamask;
+          if (isAndroid) {
+            // For mobile, try Reown/WalletConnect modal
+            const reownProjectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID;
+            if (reownProjectId) {
+              const deepLink = `https://cloud.walletconnect.com/app?projectId=${reownProjectId}`;
+              window.location.href = deepLink;
+            } else {
+              // Fallback to MetaMask deep link
+              const deepLink = `https://metamask.app.link/dapp/${typeof window !== 'undefined' ? window.location.host : ''}`;
+              window.location.href = deepLink;
+            }
           } else {
             console.warn('No wallet provider found. Please install MetaMask or another Web3 wallet.');
           }
