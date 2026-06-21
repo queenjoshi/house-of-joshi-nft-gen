@@ -36,6 +36,7 @@ export const initializeReownAppKit = () => {
       features: {
         analytics: true,
         allWallets: true,
+        socials: false,
       },
       themeMode: 'dark',
       themeVariables: {
