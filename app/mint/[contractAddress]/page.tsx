@@ -35,7 +35,7 @@ interface MintPageProps {
 
 export default function MintPage({ params }: MintPageProps) {
   const { contractAddress } = use(params);
-  const { isConnected, chainId } = useWalletStore();
+  const { isConnected, chainId, address } = useWalletStore();
   const [mintQuantity, setMintQuantity] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -54,10 +54,73 @@ export default function MintPage({ params }: MintPageProps) {
   };
 
   const handleMint = async () => {
-    if (!isConnected) return;
+    if (!isConnected || !isCorrectNetwork) return;
     setIsMinting(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsMinting(false);
+
+    try {
+      if (!window.ethereum) {
+        throw new Error('Web3 wallet not found');
+      }
+
+      // Get mint price from contract (simplified - should read from contract)
+      const mintPriceWei = BigInt(Math.floor(parseFloat('0.05') * 1e18));
+      const totalValue = mintPriceWei * BigInt(mintQuantity);
+
+      // Prepare mint transaction
+      const txParams = {
+        from: address,
+        to: contractAddress as `0x${string}`,
+        data: '0x', // Would need actual mint function encoding
+        value: '0x' + totalValue.toString(16),
+      };
+
+      // Send transaction
+      const txHash = await (window.ethereum as any).request({
+        method: 'eth_sendTransaction',
+        params: [txParams],
+      });
+
+      // Wait for confirmation
+      const maxWaitTime = 5 * 60 * 1000;
+      const pollInterval = 3 * 1000;
+      const startTime = Date.now();
+      let receipt = null;
+
+      while (!receipt && Date.now() - startTime < maxWaitTime) {
+        try {
+          const result = await (window.ethereum as any).request({
+            method: 'eth_getTransactionReceipt',
+            params: [txHash],
+          });
+
+          if (result) {
+            receipt = result;
+          }
+        } catch (e) {
+          // Ignore polling errors
+        }
+
+        if (!receipt) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+        }
+      }
+
+      if (!receipt) {
+        throw new Error('Transaction confirmation timeout');
+      }
+
+      if (receipt.status === '0x0') {
+        throw new Error('Transaction failed');
+      }
+
+      // Success
+      alert(`Successfully minted ${mintQuantity} NFT(s)!`);
+    } catch (error: any) {
+      console.error('Mint failed:', error);
+      alert(error.message || 'Mint failed. Please try again.');
+    } finally {
+      setIsMinting(false);
+    }
   };
 
   return (

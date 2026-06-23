@@ -631,11 +631,75 @@ export default function CreatePage() {
   };
 
   const verifyContract = async (contractAddr: string, networkChainId: number, txHash?: string) => {
-    setDeployStatus('verified');
+    setDeployStatus('verifying');
     const explorerBase = networkChainId === 84532
       ? 'https://sepolia.basescan.org'
       : 'https://basescan.org';
-    setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
+    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
+
+    try {
+      // Submit verification request to BaseScan
+      const verifyResponse = await fetch(`${explorerBase}/api`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          module: 'contract',
+          action: 'verifysourcecode',
+          apikey: apiKey,
+          contractaddress: contractAddr,
+          sourceCode: ROYAL_NFT_SOURCE_CODE,
+          codeformat: 'solidity-single-file',
+          contractname: CONTRACT_NAME,
+          compilerversion: COMPILER_VERSION,
+          optimizationUsed: '0',
+          runs: '200',
+          constructorArguements: '',
+          licenseType: '3',
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (verifyData.status === '1') {
+        // Verification submitted successfully, now check status
+        const maxPolls = 20;
+        let pollCount = 0;
+        let verified = false;
+
+        while (pollCount < maxPolls && !verified) {
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+
+          const statusResponse = await fetch(
+            `${explorerBase}/api?module=contract&action=getsourcecode&address=${contractAddr}&apikey=${apiKey}`
+          );
+          const statusData = await statusResponse.json();
+
+          if (statusData.status === '1' && statusData.result[0]?.SourceCode) {
+            verified = true;
+            setDeployStatus('verified');
+            setVerificationUrl(`${explorerBase}/address/${contractAddr}#code`);
+          }
+
+          pollCount++;
+        }
+
+        if (!verified) {
+          console.warn('Verification pending, user can check manually');
+          setDeployStatus('deployed');
+          setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
+        }
+      } else {
+        console.warn('Verification submission failed:', verifyData.message);
+        setDeployStatus('deployed');
+        setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      setDeployStatus('deployed');
+      setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
+    }
   };
 
   const handleCopy = (text: string) => {
