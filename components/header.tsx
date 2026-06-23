@@ -128,24 +128,24 @@ export function Header() {
 
   return (
     <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl">
-      <div className="container grid grid-cols-3 h-16 items-center gap-2 px-4 md:gap-4">
+      <div className="container flex h-16 items-center gap-2 px-4 md:gap-4">
         {/* Logo - Left */}
         <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
           <div className="relative flex items-center justify-center">
             <img 
               src="/joshi-logo.png" 
               alt="Joshi Logo" 
-              className="h-8 w-8 animate-crown-shine"
+              className="h-8 w-8 md:h-10 md:w-10 animate-crown-shine"
             />
             <div className="absolute inset-0 bg-crown/20 blur-xl rounded-full" />
           </div>
-          <span className="font-display text-xl md:text-2xl font-bold gold-text hidden sm:inline whitespace-nowrap">
+          <span className="font-display text-lg md:text-2xl font-bold gold-text whitespace-nowrap">
             House of Joshi
           </span>
         </Link>
 
         {/* Desktop Navigation - Center */}
-        <nav className="hidden md:flex items-center justify-center gap-6">
+        <nav className="hidden md:flex items-center justify-center gap-6 flex-1">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -159,17 +159,17 @@ export function Header() {
         </nav>
 
         {/* Right Side Actions */}
-        <div className="flex items-center gap-1 md:gap-3 justify-end">
-          {/* Theme Toggle - Desktop Only */}
+        <div className="flex items-center gap-1 md:gap-3 justify-end flex-shrink-0">
+          {/* Theme Toggle */}
           {mounted && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="relative overflow-hidden h-10 w-10 md:h-11 md:w-11 hidden md:flex"
+              className="relative overflow-hidden h-9 w-9 md:h-11 md:w-11"
             >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
+              <Sun className="h-4 w-4 md:h-5 md:w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
               <span className="sr-only">Toggle theme</span>
             </Button>
           )}
@@ -278,23 +278,6 @@ export function Header() {
                   <span className="font-medium">{link.label}</span>
                 </Link>
               ))}
-
-              {/* Theme Toggle - Mobile */}
-              {mounted && (
-                <button
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:text-foreground hover:bg-royal-500/10 transition-colors text-sm w-full text-left"
-                >
-                  {theme === 'dark' ? (
-                    <Sun className="h-5 w-5 flex-shrink-0" />
-                  ) : (
-                    <Moon className="h-5 w-5 flex-shrink-0" />
-                  )}
-                  <span className="font-medium">
-                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                  </span>
-                </button>
-              )}
 
               {/* Network Switch - Mobile */}
               {isConnected && !isCorrectNetwork && (
