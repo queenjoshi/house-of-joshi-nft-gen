@@ -139,7 +139,7 @@ export function Header() {
             />
             <div className="absolute inset-0 bg-crown/20 blur-xl rounded-full" />
           </div>
-          <span className="font-display text-lg md:text-2xl font-bold gold-text whitespace-nowrap">
+          <span className="font-display text-lg md:text-2xl font-bold gold-text whitespace-nowrap hidden sm:inline">
             House of Joshi
           </span>
         </Link>
@@ -160,13 +160,13 @@ export function Header() {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-1 md:gap-3 justify-end flex-shrink-0">
-          {/* Theme Toggle */}
+          {/* Theme Toggle - Desktop Only */}
           {mounted && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="relative overflow-hidden h-9 w-9 md:h-11 md:w-11"
+              className="relative overflow-hidden h-9 w-9 md:h-11 md:w-11 hidden md:flex"
             >
               <Sun className="h-4 w-4 md:h-5 md:w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
@@ -278,6 +278,23 @@ export function Header() {
                   <span className="font-medium">{link.label}</span>
                 </Link>
               ))}
+
+              {/* Theme Toggle - Mobile */}
+              {mounted && (
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:text-foreground hover:bg-royal-500/10 transition-colors text-sm w-full text-left"
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="h-5 w-5 flex-shrink-0" />
+                  ) : (
+                    <Moon className="h-5 w-5 flex-shrink-0" />
+                  )}
+                  <span className="font-medium">
+                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </span>
+                </button>
+              )}
 
               {/* Network Switch - Mobile */}
               {isConnected && !isCorrectNetwork && (
