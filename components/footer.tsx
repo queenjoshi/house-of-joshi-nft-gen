@@ -30,7 +30,6 @@ const FOOTER_LINKS = {
   resources: [
     { label: 'Documentation', href: '/docs', external: false },
     { label: 'FAQ', href: '/faq', external: false },
-    { label: 'Help Center', href: '/help', external: false },
     { label: 'API Reference', href: '/api-reference', external: false },
   ],
   services: [

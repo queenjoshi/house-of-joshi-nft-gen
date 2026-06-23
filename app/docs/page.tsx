@@ -107,14 +107,14 @@ export default function DocsPage() {
         >
           <h2 className="text-2xl font-display font-semibold mb-4">Need Help?</h2>
           <p className="text-muted-foreground mb-6">
-            Can't find what you're looking for? Check our FAQ or contact support.
+            Can't find what you're looking for? Check our FAQ or contact us.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link href="/faq">
               <Button variant="outline">FAQ</Button>
             </Link>
-            <Link href="/help">
-              <Button className="gold-button">Contact Support</Button>
+            <Link href="/contact">
+              <Button className="gold-button">Contact Us</Button>
             </Link>
           </div>
         </motion.div>

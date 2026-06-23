@@ -261,14 +261,11 @@ export default function ContactPage() {
         >
           <h2 className="text-2xl font-display font-semibold mb-4">Quick Help</h2>
           <p className="text-muted-foreground mb-6">
-            Check our FAQ or help center for instant answers.
+            Check our FAQ or documentation for instant answers.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <a href="/faq">
               <Button variant="outline">FAQ</Button>
-            </a>
-            <a href="/help">
-              <Button variant="outline">Help Center</Button>
             </a>
             <a href="/docs">
               <Button variant="outline">Documentation</Button>
