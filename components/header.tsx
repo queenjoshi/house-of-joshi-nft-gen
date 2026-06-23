@@ -29,15 +29,6 @@ import { useWalletStore, useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA }
 import { cn } from '@/lib/utils';
 import { useReownModal } from '@/hooks/useReownModal';
 
-// TypeScript declaration for adsbygoogle
-declare global {
-  interface Window {
-    adsbygoogle: {
-      push: (options: object) => void;
-    };
-  }
-}
-
 const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
   { href: '/collections', label: 'Collections', icon: Compass },
@@ -56,15 +47,6 @@ export function Header() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  // Initialize Google AdSense
-  useEffect(() => {
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (error) {
-      console.error('AdSense initialization error:', error);
-    }
   }, []);
 
   // Sync Reown wallet state with store
@@ -246,6 +228,7 @@ export function Header() {
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* Google AdSense Ad */}
       <div className="w-full bg-background/50 backdrop-blur-sm border-b border-royal-500/10">
         <ins
@@ -257,6 +240,8 @@ export function Header() {
         />
       </div>
 
+=======
+>>>>>>> fe07c92 (Remove Google AdSense integration)
       {/* Mobile Navigation */}
       <AnimatePresence>
         {isMobileMenuOpen && (

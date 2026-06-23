@@ -55,7 +55,6 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8905064413166970" crossOrigin="anonymous"></script>
       </head>
       <body className="min-h-screen bg-background antialiased">
         <Providers>{children}</Providers>
