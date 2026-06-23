@@ -4,7 +4,7 @@
 export const ROYAL_NFT_SOURCE_CODE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-// OpenZeppelin ERC721 implementation (flattened for verification)
+// OpenZeppelin Contracts v4.4.1 (access/Ownable.sol)
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
@@ -24,8 +24,18 @@ abstract contract Ownable is Context {
         return _owner;
     }
     modifier onlyOwner() {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _checkOwner();
         _;
+    }
+    function _checkOwner() internal view virtual {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+    }
+    function renounceOwnership() public virtual onlyOwner {
+        _transferOwnership(address(0));
+    }
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        _transferOwnership(newOwner);
     }
     function _transferOwnership(address newOwner) internal virtual {
         address oldOwner = _owner;
@@ -34,6 +44,7 @@ abstract contract Ownable is Context {
     }
 }
 
+// OpenZeppelin Contracts v4.4.1 (security/ReentrancyGuard.sol)
 abstract contract ReentrancyGuard {
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
@@ -42,319 +53,326 @@ abstract contract ReentrancyGuard {
         _status = _NOT_ENTERED;
     }
     modifier nonReentrant() {
+        _nonReentrantBefore();
+        _;
+        _nonReentrantAfter();
+    }
+    function _nonReentrantBefore() private {
         require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
         _status = _ENTERED;
-        _;
+    }
+    function _nonReentrantAfter() private {
         _status = _NOT_ENTERED;
     }
 }
 
-interface IERC165 {
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
-
-abstract contract ERC165 is IERC165 {
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC165).interfaceId;
-    }
-}
-
-interface IERC721 is IERC165 {
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/IERC721.sol)
+interface IERC721 {
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
-    function balanceOf(address owner) external view returns (uint256);
-    function ownerOf(uint256 tokenId) external view returns (address);
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
+    function balanceOf(address owner) external view returns (uint256 balance);
+    function ownerOf(uint256 tokenId) external view returns (address owner);
     function safeTransferFrom(address from, address to, uint256 tokenId) external;
     function transferFrom(address from, address to, uint256 tokenId) external;
     function approve(address to, uint256 tokenId) external;
-    function setApprovalForAll(address operator, bool approved) external;
-    function getApproved(uint256 tokenId) external view returns (address);
-    function isApprovedForAll(address owner, address operator) external view returns (bool);
+    function getApproved(uint256 tokenId) external view returns (address operator);
+    function setApprovalForAll(address operator, bool _approved) external;
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
 }
 
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/IERC721Receiver.sol)
+interface IERC721Receiver {
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4);
+}
+
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/extensions/IERC721Metadata.sol)
 interface IERC721Metadata is IERC721 {
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);
     function tokenURI(uint256 tokenId) external view returns (string memory);
 }
 
-interface IERC721Receiver {
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4);
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
+interface IERC165 {
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
+abstract contract ERC165 is IERC165 {
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC165).interfaceId;
+    }
+}
+
+// OpenZeppelin Contracts v4.4.1 (utils/Address.sol)
 library Address {
     function isContract(address account) internal view returns (bool) {
         return account.code.length > 0;
     }
 }
 
+// OpenZeppelin Contracts v4.4.1 (utils/Strings.sol)
 library Strings {
     bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
     function toString(uint256 value) internal pure returns (string memory) {
-        if (value == 0) return "0";
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) { digits++; temp /= 10; }
-        bytes memory buffer = new bytes(digits);
-        while (value != 0) {
-            digits -= 1;
-            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
-            value /= 10;
+        if (value == 0) {
+            return "0";
         }
+        uint256 temp = value;
+        uint256 length;
+        while (temp != 0) {
+            length++;
+            temp >>= 8;
+        }
+        return toHexString(value, length);
+    }
+    function toHexString(uint256 value, uint256 length) internal pure returns (string memory) {
+        bytes memory buffer = new bytes(2 * length);
+        for (uint256 i = 2 * length; i > 0; ) {
+            buffer[--i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+            buffer[--i] = _HEX_SYMBOLS[value & 0xf];
+            value >>= 4;
+        }
+        require(value == 0, "Strings: hex length insufficient");
         return string(buffer);
     }
 }
 
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/ERC721.sol)
 abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     using Address for address;
     using Strings for uint256;
-
     string private _name;
     string private _symbol;
     mapping(uint256 => address) private _owners;
     mapping(address => uint256) private _balances;
     mapping(uint256 => address) private _tokenApprovals;
     mapping(address => mapping(address => bool)) private _operatorApprovals;
-
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
     }
-
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
-        return interfaceId == type(IERC721).interfaceId || interfaceId == type(IERC721Metadata).interfaceId || super.supportsInterface(interfaceId);
-    }
-
     function balanceOf(address owner) public view virtual override returns (uint256) {
-        require(owner != address(0), "ERC721: address zero is not a valid owner");
+        require(owner != address(0), "ERC721: balance query for the zero address");
         return _balances[owner];
     }
-
     function ownerOf(uint256 tokenId) public view virtual override returns (address) {
         address owner = _ownerOf(tokenId);
-        require(owner != address(0), "ERC721: invalid token ID");
+        require(owner != address(0), "ERC721: owner query for nonexistent token");
         return owner;
     }
-
-    function _ownerOf(uint256 tokenId) internal view virtual returns (address) {
-        return _owners[tokenId];
+    function name() public view virtual override returns (string memory) {
+        return _name;
     }
-
-    function name() public view virtual override returns (string memory) { return _name; }
-    function symbol() public view virtual override returns (string memory) { return _symbol; }
-
+    function symbol() public view virtual override returns (string memory) {
+        return _symbol;
+    }
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireMinted(tokenId);
         string memory baseURI = _baseURI();
-        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, _toString(tokenId))) : "";
     }
-
-    function _baseURI() internal view virtual returns (string memory) { return ""; }
-
     function approve(address to, uint256 tokenId) public virtual override {
-        address owner = ownerOf(tokenId);
+        address owner = ERC721.ownerOf(tokenId);
         require(to != owner, "ERC721: approval to current owner");
-        require(_msgSender() == owner || isApprovedForAll(owner, _msgSender()), "ERC721: approve caller is not token owner or approved for all");
+        require(_msgSender() == owner || isApprovedForAll(owner, _msgSender()), "ERC721: approve caller is not owner nor approved for all");
         _approve(to, tokenId);
     }
-
     function getApproved(uint256 tokenId) public view virtual override returns (address) {
         _requireMinted(tokenId);
         return _tokenApprovals[tokenId];
     }
-
     function setApprovalForAll(address operator, bool approved) public virtual override {
-        _setApprovalForAll(_msgSender(), operator, approved);
+        require(_msgSender() != operator, "ERC721: approve to caller");
+        _operatorApprovals[_msgSender()][operator] = approved;
+        emit ApprovalForAll(_msgSender(), operator, approved);
     }
-
     function isApprovedForAll(address owner, address operator) public view virtual override returns (bool) {
         return _operatorApprovals[owner][operator];
     }
-
     function transferFrom(address from, address to, uint256 tokenId) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
         _transfer(from, to, tokenId);
     }
-
     function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
         safeTransferFrom(from, to, tokenId, "");
     }
-
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: caller is not token owner or approved");
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
         _safeTransfer(from, to, tokenId, data);
     }
-
     function _safeTransfer(address from, address to, uint256 tokenId, bytes memory data) internal virtual {
         _transfer(from, to, tokenId);
-        require(_checkOnERC721Received(from, to, tokenId, data), "ERC721: transfer to non ERC721Receiver implementer");
+        _checkOnERC721Received(from, to, tokenId, data);
     }
-
     function _ownerOf(uint256 tokenId) internal view virtual returns (address) {
         return _owners[tokenId];
     }
-
     function _exists(uint256 tokenId) internal view virtual returns (bool) {
         return _ownerOf(tokenId) != address(0);
     }
-
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual returns (bool) {
-        address owner = ownerOf(tokenId);
+        address owner = ERC721.ownerOf(tokenId);
         return (spender == owner || isApprovedForAll(owner, spender) || getApproved(tokenId) == spender);
     }
-
     function _safeMint(address to, uint256 tokenId) internal virtual {
         _safeMint(to, tokenId, "");
     }
-
     function _safeMint(address to, uint256 tokenId, bytes memory data) internal virtual {
         _mint(to, tokenId);
-        require(_checkOnERC721Received(address(0), to, tokenId, data), "ERC721: transfer to non ERC721Receiver implementer");
+        _checkOnERC721Received(address(0), to, tokenId, data);
     }
-
     function _mint(address to, uint256 tokenId) internal virtual {
         require(to != address(0), "ERC721: mint to the zero address");
         require(!_exists(tokenId), "ERC721: token already minted");
-        _beforeTokenTransfer(address(0), to, tokenId, 1);
-        require(!_exists(tokenId), "ERC721: token already minted");
+        _beforeTokenTransfer(address(0), to, tokenId);
         _balances[to] += 1;
         _owners[tokenId] = to;
         emit Transfer(address(0), to, tokenId);
-        _afterTokenTransfer(address(0), to, tokenId, 1);
+        _afterTokenTransfer(address(0), to, tokenId);
     }
-
     function _burn(uint256 tokenId) internal virtual {
-        address owner = ownerOf(tokenId);
-        _beforeTokenTransfer(owner, address(0), tokenId, 1);
-        owner = ownerOf(tokenId);
+        address owner = ERC721.ownerOf(tokenId);
+        _beforeTokenTransfer(owner, address(0), tokenId);
         _approve(address(0), tokenId);
         _balances[owner] -= 1;
         delete _owners[tokenId];
         emit Transfer(owner, address(0), tokenId);
-        _afterTokenTransfer(owner, address(0), tokenId, 1);
+        _afterTokenTransfer(owner, address(0), tokenId);
     }
-
     function _transfer(address from, address to, uint256 tokenId) internal virtual {
-        require(ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
         require(to != address(0), "ERC721: transfer to the zero address");
-        _beforeTokenTransfer(from, to, tokenId, 1);
-        require(ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        _beforeTokenTransfer(from, to, tokenId);
         _approve(address(0), tokenId);
         _balances[from] -= 1;
         _balances[to] += 1;
         _owners[tokenId] = to;
         emit Transfer(from, to, tokenId);
-        _afterTokenTransfer(from, to, tokenId, 1);
+        _afterTokenTransfer(from, to, tokenId);
     }
-
     function _approve(address to, uint256 tokenId) internal virtual {
         _tokenApprovals[tokenId] = to;
-        emit Approval(ownerOf(tokenId), to, tokenId);
+        emit Approval(ERC721.ownerOf(tokenId), to, tokenId);
     }
-
-    function _setApprovalForAll(address owner, address operator, bool approved) internal virtual {
-        require(owner != operator, "ERC721: approve to caller");
-        _operatorApprovals[owner][operator] = approved;
-        emit ApprovalForAll(owner, operator, approved);
-    }
-
-    function _requireMinted(uint256 tokenId) internal view virtual {
-        require(_exists(tokenId), "ERC721: invalid token ID");
-    }
-
     function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory data) private returns (bool) {
         if (to.isContract()) {
-            try IERC721Receiver(to).onERC721Received(_msgSender(), from, tokenId, data) returns (bytes4 retval) {
-                return retval == IERC721Receiver.onERC721Received.selector;
-            } catch (bytes memory reason) {
-                if (reason.length == 0) revert("ERC721: transfer to non ERC721Receiver implementer");
-                else assembly { revert(add(32, reason), mload(reason)) }
-            }
+            try return IERC721Receiver(to).onERC721Received(_msgSender(), from, tokenId, data) == IERC721Receiver.onERC721Received.selector;
+            catch {}
         }
         return true;
     }
-
-    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize) internal virtual {}
-    function _afterTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize) internal virtual {}
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual {}
+    function _afterTokenTransfer(address from, address to, uint256 tokenId) internal virtual {}
+    function _requireMinted(uint256 tokenId) internal view virtual {
+        require(_exists(tokenId), "ERC721: invalid token ID");
+    }
+    function _baseURI() internal view virtual returns (string memory) {
+        return "";
+    }
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+        return interfaceId == type(IERC721).interfaceId || interfaceId == type(IERC721Metadata).interfaceId || super.supportsInterface(interfaceId);
+    }
 }
 
-abstract contract ERC721Enumerable is ERC721 {
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/extensions/IERC721Enumerable.sol)
+interface IERC721Enumerable is IERC721 {
+    function totalSupply() external view returns (uint256);
+    function tokenByIndex(uint256 index) external view returns (uint256);
+    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256);
+}
+
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/extensions/ERC721Enumerable.sol)
+abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
     mapping(address => mapping(uint256 => uint256)) private _ownedTokens;
     mapping(uint256 => uint256) private _ownedTokensIndex;
     uint256[] private _allTokens;
     mapping(uint256 => uint256) private _allTokensIndex;
-
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, ERC165) returns (bool) {
-        return interfaceId == bytes4(0x780e9d63) || super.supportsInterface(interfaceId);
-    }
-
-    function tokenOfOwnerByIndex(address owner, uint256 index) public view virtual returns (uint256) {
-        require(index < balanceOf(owner), "ERC721Enumerable: owner index out of bounds");
+    function tokenOfOwnerByIndex(address owner, uint256 index) public view virtual override returns (uint256) {
+        require(index < ERC721.balanceOf(owner), "ERC721Enumerable: owner index out of bounds");
         return _ownedTokens[owner][index];
     }
-
-    function totalSupply() public view virtual returns (uint256) { return _allTokens.length; }
-    function tokenByIndex(uint256 index) public view virtual returns (uint256) {
-        require(index < totalSupply(), "ERC721Enumerable: global index out of bounds");
+    function totalSupply() public view virtual override returns (uint256) {
+        return _allTokens.length;
+    }
+    function tokenByIndex(uint256 index) public view virtual override returns (uint256) {
+        require(index < ERC721Enumerable.totalSupply(), "ERC721Enumerable: global index out of bounds");
         return _allTokens[index];
     }
-
-    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize) internal virtual override {
-        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
-        for (uint256 i = 0; i < batchSize; i++) {
-            uint256 tokenId = firstTokenId + i;
-            if (from == address(0)) {
-                _allTokensIndex[tokenId] = _allTokens.length;
-                _allTokens.push(tokenId);
-            } else {
-                uint256 lastTokenIndex = balanceOf(from) - 1;
-                uint256 tokenIndex = _ownedTokensIndex[tokenId];
-                if (tokenIndex != lastTokenIndex) {
-                    uint256 lastTokenId = _ownedTokens[from][lastTokenIndex];
-                    _ownedTokens[from][tokenIndex] = lastTokenId;
-                    _ownedTokensIndex[lastTokenId] = tokenIndex;
-                }
-                delete _ownedTokensIndex[tokenId];
-                delete _ownedTokens[from][lastTokenIndex];
-            }
-            if (to == address(0)) {
-                uint256 lastTokenIndex = _allTokens.length - 1;
-                uint256 tokenIndex = _allTokensIndex[tokenId];
-                uint256 lastTokenId = _allTokens[lastTokenIndex];
-                _allTokens[tokenIndex] = lastTokenId;
-                _allTokensIndex[lastTokenId] = tokenIndex;
-                delete _allTokensIndex[tokenId];
-                _allTokens.pop();
-            } else {
-                _ownedTokensIndex[tokenId] = _ownedTokens[to].length;
-                _ownedTokens[to].push(tokenId);
-            }
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
+        super._beforeTokenTransfer(from, to, tokenId);
+        if (from == address(0)) {
+            _addTokenToAllTokensEnumeration(tokenId);
+        } else if (from != to) {
+            _removeTokenFromOwnerEnumeration(from, tokenId);
         }
+        if (to == address(0)) {
+            _removeTokenFromAllTokensEnumeration(tokenId);
+        } else if (to != from) {
+            _addTokenToOwnerEnumeration(to, tokenId);
+        }
+    }
+    function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
+        _ownedTokensIndex[tokenId] = _ownedTokens[to].length;
+        _ownedTokens[to].push(tokenId);
+    }
+    function _addTokenToAllTokensEnumeration(uint256 tokenId) private {
+        _allTokensIndex[tokenId] = _allTokens.length;
+        _allTokens.push(tokenId);
+    }
+    function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
+        uint256 lastTokenIndex = _ownedTokens[from].length - 1;
+        uint256 tokenIndex = _ownedTokensIndex[tokenId];
+        if (tokenIndex != lastTokenIndex) {
+            uint256 lastTokenId = _ownedTokens[from][lastTokenIndex];
+            _ownedTokens[from][tokenIndex] = lastTokenId;
+            _ownedTokensIndex[lastTokenId] = tokenIndex;
+        }
+        delete _ownedTokensIndex[tokenId];
+        _ownedTokens[from].pop();
+    }
+    function _removeTokenFromAllTokensEnumeration(uint256 tokenId) private {
+        uint256 lastTokenIndex = _allTokens.length - 1;
+        uint256 tokenIndex = _allTokensIndex[tokenId];
+        uint256 lastTokenId = _allTokens[lastTokenIndex];
+        _allTokens[tokenIndex] = lastTokenId;
+        _allTokensIndex[lastTokenId] = tokenIndex;
+        delete _allTokensIndex[tokenId];
+        _allTokens.pop();
+    }
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, IERC165) returns (bool) {
+        return interfaceId == type(IERC721Enumerable).interfaceId || super.supportsInterface(interfaceId);
     }
 }
 
-abstract contract ERC721URIStorage is ERC721 {
-    mapping(uint256 => string) private _tokenURIs;
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/extensions/IERC721URIStorage.sol)
+interface IERC721URIStorage is IERC721 {
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
 
-    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+// OpenZeppelin Contracts v4.4.1 (token/ERC721/extensions/ERC721URIStorage.sol)
+abstract contract ERC721URIStorage is ERC721, IERC721URIStorage {
+    mapping(uint256 => string) private _tokenURIs;
+    function tokenURI(uint256 tokenId) public view virtual override(ERC721, IERC721URIStorage) returns (string memory) {
         _requireMinted(tokenId);
         string memory _tokenURI = _tokenURIs[tokenId];
         string memory base = _baseURI();
-        if (bytes(base).length == 0) return _tokenURI;
-        if (bytes(_tokenURI).length > 0) return string(abi.encodePacked(base, _tokenURI));
+        if (bytes(base).length == 0) {
+            return _tokenURI;
+        }
+        if (bytes(_tokenURI).length > 0) {
+            return string(abi.encodePacked(base, _tokenURI));
+        }
         return super.tokenURI(tokenId);
     }
-
     function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
         require(_exists(tokenId), "ERC721URIStorage: URI set of nonexistent token");
         _tokenURIs[tokenId] = _tokenURI;
     }
-
-    function _burn(uint256 tokenId) internal virtual override {
-        super._burn(tokenId);
-        if (bytes(_tokenURIs[tokenId]).length != 0) delete _tokenURIs[tokenId];
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
+        return interfaceId == type(IERC721URIStorage).interfaceId || super.supportsInterface(interfaceId);
     }
 }
 
@@ -377,25 +395,32 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
     event MintPriceUpdated(uint256 newPrice);
     event MintWindowUpdated(uint256 startTime, uint256 endTime);
 
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint256 _mintPrice,
-        uint256 _mintStartTime,
-        uint256 _mintEndTime,
-        string memory _baseTokenURI,
-        uint96 _royaltyPercentage,
-        address _royaltyRecipient,
-        address initialOwner
-    ) ERC721(name, symbol) Ownable(initialOwner) {
-        require(_royaltyPercentage <= 1000, "Invalid royalty");
-        require(_royaltyRecipient != address(0), "Invalid address");
-        mintPrice = _mintPrice;
-        mintStartTime = _mintStartTime;
-        mintEndTime = _mintEndTime;
-        baseTokenURI = _baseTokenURI;
-        royaltyPercentage = _royaltyPercentage;
-        royaltyRecipient = _royaltyRecipient;
+    struct CollectionParams {
+        string name;
+        string symbol;
+        string contractURI;
+        string baseURI;
+        string unrevealedURI;
+        uint256 maxSupply;
+        uint256 mintPrice;
+        uint256 maxMintPerWallet;
+        uint64 mintStart;
+        uint64 mintEnd;
+        uint64 revealTime;
+        address royaltyReceiver;
+        uint96 royaltyBps;
+        bytes32 allowlistRoot;
+    }
+
+    constructor(CollectionParams memory p) ERC721(p.name, p.symbol) Ownable(msg.sender) {
+        require(p.royaltyBps <= 1000, "Invalid royalty");
+        require(p.royaltyReceiver != address(0), "Invalid address");
+        mintPrice = p.mintPrice;
+        mintStartTime = p.mintStart;
+        mintEndTime = p.mintEnd;
+        baseTokenURI = p.baseURI;
+        royaltyPercentage = p.royaltyBps;
+        royaltyRecipient = p.royaltyReceiver;
     }
 
     function mint(uint256 quantity, address referral) external payable nonReentrant {
@@ -496,158 +521,112 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
 
     receive() external payable {}
 }
+
+contract NFTFactory is Ownable, ReentrancyGuard {
+    uint256 public deploymentFee = 0.0001 ether;
+    address public feeRecipient;
+    
+    mapping(address => bool) public isWhitelistedCreator;
+    mapping(address => uint256) public creatorDeployments;
+    
+    event CollectionCreated(address indexed creator, address indexed collection, string name, string symbol);
+    event DeploymentFeeUpdated(uint256 newFee);
+    event FeeRecipientUpdated(address newRecipient);
+    event CreatorWhitelisted(address indexed creator, bool whitelisted);
+
+    constructor(address _feeRecipient) Ownable(msg.sender) {
+        feeRecipient = _feeRecipient;
+    }
+
+    function createCollection(RoyalNFT.CollectionParams memory p) external payable nonReentrant returns (address) {
+        require(msg.value >= deploymentFee, "Insufficient deployment fee");
+        require(bytes(p.name).length > 0, "Name required");
+        require(bytes(p.symbol).length > 0, "Symbol required");
+        
+        RoyalNFT collection = new RoyalNFT(p);
+        collection.transferOwnership(msg.sender);
+        
+        creatorDeployments[msg.sender]++;
+        
+        emit CollectionCreated(msg.sender, address(collection), p.name, p.symbol);
+        
+        if (deploymentFee > 0) {
+            (bool success, ) = payable(feeRecipient).call{value: deploymentFee}("");
+            require(success, "Fee transfer failed");
+        }
+        
+        if (msg.value > deploymentFee) {
+            (bool success, ) = payable(msg.sender).call{value: msg.value - deploymentFee}("");
+            require(success, "Refund failed");
+        }
+        
+        return address(collection);
+    }
+
+    function setDeploymentFee(uint256 _fee) external onlyOwner {
+        deploymentFee = _fee;
+        emit DeploymentFeeUpdated(_fee);
+    }
+
+    function setFeeRecipient(address _recipient) external onlyOwner {
+        require(_recipient != address(0), "Invalid address");
+        feeRecipient = _recipient;
+        emit FeeRecipientUpdated(_recipient);
+    }
+
+    function setCreatorWhitelist(address creator, bool whitelisted) external onlyOwner {
+        isWhitelistedCreator[creator] = whitelisted;
+        emit CreatorWhitelisted(creator, whitelisted);
+    }
+
+    function withdrawFees() external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No balance");
+        (bool success, ) = payable(owner()).call{value: balance}("");
+        require(success, "Withdraw failed");
+    }
+
+    receive() external payable {}
+}
 `;
 
 export const COMPILER_VERSION = "v0.8.20+commit.a1b79de6";
-export const CONTRACT_NAME = "RoyalNFT";
+export const CONTRACT_NAME = "NFTFactory";
 
-// ABI for the RoyalNFT contract
+// Factory ABI for createCollection function
+export const FACTORY_ABI = [
+  {
+    name: 'createCollection',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'p',
+        type: 'tuple',
+        components: [
+          { name: 'name', type: 'string' },
+          { name: 'symbol', type: 'string' },
+          { name: 'contractURI', type: 'string' },
+          { name: 'baseURI', type: 'string' },
+          { name: 'unrevealedURI', type: 'string' },
+          { name: 'maxSupply', type: 'uint256' },
+          { name: 'mintPrice', type: 'uint256' },
+          { name: 'maxMintPerWallet', type: 'uint256' },
+          { name: 'mintStart', type: 'uint64' },
+          { name: 'mintEnd', type: 'uint64' },
+          { name: 'revealTime', type: 'uint64' },
+          { name: 'royaltyReceiver', type: 'address' },
+          { name: 'royaltyBps', type: 'uint96' },
+          { name: 'allowlistRoot', type: 'bytes32' },
+        ],
+      },
+    ],
+    outputs: [{ type: 'address' }],
+  },
+] as const;
+
+// RoyalNFT ABI for minting
 export const ROYAL_NFT_ABI = [
-  {
-    inputs: [
-      { internalType: "string", name: "name", type: "string" },
-      { internalType: "string", name: "symbol", type: "string" },
-      { internalType: "uint256", name: "_mintPrice", type: "uint256" },
-      { internalType: "uint256", name: "_mintStartTime", type: "uint256" },
-      { internalType: "uint256", name: "_mintEndTime", type: "uint256" },
-      { internalType: "string", name: "_baseTokenURI", type: "string" },
-      { internalType: "uint96", name: "_royaltyPercentage", type: "uint96" },
-      { internalType: "address", name: "_royaltyRecipient", type: "address" },
-      { internalType: "address", name: "initialOwner", type: "address" },
-    ],
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  { inputs: [], name: "RoyalNFT__InsufficientPayment", type: "error" },
-  { inputs: [], name: "RoyalNFT__InvalidAddress", type: "error" },
-  { inputs: [], name: "RoyalNFT__InvalidAmount", type: "error" },
-  { inputs: [], name: "RoyalNFT__MaxSupplyReached", type: "error" },
-  { inputs: [], name: "RoyalNFT__MintEnded", type: "error" },
-  { inputs: [], name: "RoyalNFT__MintNotStarted", type: "error" },
-  { inputs: [], name: "RoyalNFT__TokenDoesNotExist", type: "error" },
-  { inputs: [], name: "RoyalNFT__WithdrawFailed", type: "error" },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "owner", type: "address" },
-      { indexed: true, internalType: "address", name: "approved", type: "address" },
-      { indexed: true, internalType: "uint256", name: "tokenId", type: "uint256" },
-    ],
-    name: "Approval",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "owner", type: "address" },
-      { indexed: true, internalType: "address", name: "operator", type: "address" },
-      { indexed: false, internalType: "bool", name: "approved", type: "bool" },
-    ],
-    name: "ApprovalForAll",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [{ indexed: false, internalType: "string", name: "newBaseURI", type: "string" }],
-    name: "BaseURIUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "minter", type: "address" },
-      { indexed: true, internalType: "uint256", name: "tokenId", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "amountPaid", type: "uint256" },
-      { indexed: true, internalType: "address", name: "referral", type: "address" },
-    ],
-    name: "Minted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: false, internalType: "uint256", name: "startTime", type: "uint256" },
-      { indexed: false, internalType: "uint256", name: "endTime", type: "uint256" },
-    ],
-    name: "MintWindowUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "previousOwner", type: "address" },
-      { indexed: true, internalType: "address", name: "newOwner", type: "address" },
-    ],
-    name: "OwnershipTransferred",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "referrer", type: "address" },
-      { indexed: false, internalType: "uint256", name: "amount", type: "uint256" },
-    ],
-    name: "ReferralRewardPaid",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "from", type: "address" },
-      { indexed: true, internalType: "address", name: "to", type: "address" },
-      { indexed: true, internalType: "uint256", name: "tokenId", type: "uint256" },
-    ],
-    name: "Transfer",
-    type: "event",
-  },
-  {
-    inputs: [],
-    name: "MAX_SUPPLY",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "tokenId", type: "uint256" },
-    ],
-    name: "approve",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "owner", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "baseTokenURI",
-    outputs: [{ internalType: "string", name: "", type: "string" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
-    name: "getApproved",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "owner", type: "address" },
-      { internalType: "address", name: "operator", type: "address" },
-    ],
-    name: "isApprovedForAll",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
   {
     inputs: [
       { internalType: "uint256", name: "quantity", type: "uint256" },
@@ -660,159 +639,8 @@ export const ROYAL_NFT_ABI = [
   },
   {
     inputs: [],
-    name: "mintEndTime",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
     name: "mintPrice",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "mintStartTime",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "name",
-    outputs: [{ internalType: "string", name: "", type: "string" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "owner",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
-    name: "ownerOf",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "remainingSupply",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "referralMints",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
-    name: "referralRewards",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "renounceOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "from", type: "address" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "tokenId", type: "uint256" },
-    ],
-    name: "safeTransferFrom",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "from", type: "address" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "tokenId", type: "uint256" },
-      { internalType: "bytes", name: "data", type: "bytes" },
-    ],
-    name: "safeTransferFrom",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "operator", type: "address" },
-      { internalType: "bool", name: "approved", type: "bool" },
-    ],
-    name: "setApprovalForAll",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "string", name: "_baseTokenURI", type: "string" }],
-    name: "setBaseURI",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint256", name: "_mintStartTime", type: "uint256" },
-      { internalType: "uint256", name: "_mintEndTime", type: "uint256" },
-    ],
-    name: "setMintWindow",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "bytes4", name: "interfaceId", type: "bytes4" }],
-    name: "supportsInterface",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "symbol",
-    outputs: [{ internalType: "string", name: "", type: "string" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "index", type: "uint256" }],
-    name: "tokenByIndex",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "owner", type: "address" },
-      { internalType: "uint256", name: "index", type: "uint256" },
-    ],
-    name: "tokenOfOwnerByIndex",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
-    name: "tokenURI",
-    outputs: [{ internalType: "string", name: "", type: "string" }],
     stateMutability: "view",
     type: "function",
   },
@@ -825,47 +653,16 @@ export const ROYAL_NFT_ABI = [
   },
   {
     inputs: [],
-    name: "totalSupply",
+    name: "remainingSupply",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
     stateMutability: "view",
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address", name: "from", type: "address" },
-      { internalType: "address", name: "to", type: "address" },
-      { internalType: "uint256", name: "tokenId", type: "uint256" },
-    ],
-    name: "transferFrom",
-    outputs: [],
-    stateMutability: "nonpayable",
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "tokenURI",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
     type: "function",
   },
-  {
-    inputs: [{ internalType: "address", name: "newOwner", type: "address" }],
-    name: "transferOwnership",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "withdraw",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "referrer", type: "address" }],
-    name: "withdrawReferralRewards",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  { stateMutability: "payable", type: "receive" },
 ];
-
-// Bytecode for deployment (simplified - in production this would be the actual compiled bytecode)
-// This is a placeholder that simulates deployment for the demo
-export const ROYAL_NFT_BYTECODE =
-  "0x608060405234801561001057600080fd5b50...";

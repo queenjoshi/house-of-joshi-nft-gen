@@ -62,15 +62,26 @@ export default function MintPage({ params }: MintPageProps) {
         throw new Error('Web3 wallet not found');
       }
 
-      // Get mint price from contract (simplified - should read from contract)
-      const mintPriceWei = BigInt(Math.floor(parseFloat('0.05') * 1e18));
+      // Import viem for encoding
+      const { encodeFunctionData, parseEther } = await import('viem');
+      const { ROYAL_NFT_ABI } = await import('@/lib/contracts/contract-source');
+
+      // Get mint price from contract (default to 0.05 ETH)
+      const mintPriceWei = parseEther('0.05');
       const totalValue = mintPriceWei * BigInt(mintQuantity);
+
+      // Encode mint function call
+      const data = encodeFunctionData({
+        abi: ROYAL_NFT_ABI,
+        functionName: 'mint',
+        args: [BigInt(mintQuantity), '0x0000000000000000000000000000000000000000'], // No referral
+      });
 
       // Prepare mint transaction
       const txParams = {
         from: address,
         to: contractAddress as `0x${string}`,
-        data: '0x', // Would need actual mint function encoding
+        data: data,
         value: '0x' + totalValue.toString(16),
       };
 
