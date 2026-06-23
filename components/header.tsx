@@ -228,20 +228,6 @@ export function Header() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* Google AdSense Ad */}
-      <div className="w-full bg-background/50 backdrop-blur-sm border-b border-royal-500/10">
-        <ins
-          className="adsbygoogle block mx-auto"
-          style={{ display: 'block', width: '800px', height: '80px' }}
-          data-ad-client="ca-pub-8905064413166970"
-          data-ad-slot="2582388738"
-          data-ad-format="horizontal"
-        />
-      </div>
-
-=======
->>>>>>> fe07c92 (Remove Google AdSense integration)
       {/* Mobile Navigation */}
       <AnimatePresence>
         {isMobileMenuOpen && (
