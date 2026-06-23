@@ -29,6 +29,15 @@ import { useWalletStore, useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA }
 import { cn } from '@/lib/utils';
 import { useReownModal } from '@/hooks/useReownModal';
 
+// TypeScript declaration for adsbygoogle
+declare global {
+  interface Window {
+    adsbygoogle: {
+      push: (options: object) => void;
+    };
+  }
+}
+
 const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
   { href: '/collections', label: 'Collections', icon: Compass },
@@ -47,6 +56,15 @@ export function Header() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Initialize Google AdSense
+  useEffect(() => {
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (error) {
+      console.error('AdSense initialization error:', error);
+    }
   }, []);
 
   // Sync Reown wallet state with store
@@ -226,6 +244,18 @@ export function Header() {
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
+      </div>
+
+      {/* Google AdSense Ad */}
+      <div className="w-full bg-background/50 backdrop-blur-sm border-b border-royal-500/10">
+        <ins
+          className="adsbygoogle block"
+          style={{ display: 'block' }}
+          data-ad-client="ca-pub-8905064413166970"
+          data-ad-slot="2582388738"
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        />
       </div>
 
       {/* Mobile Navigation */}
