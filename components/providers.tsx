@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { createAppKit } from '@reown/appkit';
 import { EthersAdapter } from '@reown/appkit-adapter-ethers';
 import { base, mainnet, sepolia } from '@reown/appkit/networks';
+import { ServiceWorkerRegistration } from './service-worker-registration';
 
 // Initialize Reown AppKit in a ref so it can be accessed globally
 let appKitInstance: any = null;
@@ -85,6 +86,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
+        <ServiceWorkerRegistration />
         {children}
       </ThemeProvider>
     </QueryClientProvider>

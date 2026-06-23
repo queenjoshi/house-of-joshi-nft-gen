@@ -6,10 +6,7 @@ export const metadata: Metadata = {
   title: 'House of Joshi Launchpad | NFT Launchpad on Base',
   description: 'Create, launch, and mint generative NFT collections on Base. The premier NFT launchpad with royalty-themed aesthetics.',
   metadataBase: new URL('https://thehouseofjoshi.com'),
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#faf5ff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a0a2e' },
-  ],
+  themeColor: '#6E44FF',
   openGraph: {
     title: 'House of Joshi Launchpad | NFT Launchpad on Base',
     description: 'Create, launch, and mint generative NFT collections on Base. The premier NFT launchpad with royalty-themed aesthetics.',
@@ -42,6 +39,18 @@ export const metadata: Metadata = {
     width: 'device-width',
     initialScale: 1,
     maximumScale: 1,
+    viewportFit: 'cover',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'House of Joshi',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    'apple-mobile-web-app-title': 'House of Joshi',
   },
 };
 
@@ -55,6 +64,16 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="House of Joshi" />
+        <meta name="application-name" content="House of Joshi" />
+        <meta name="theme-color" content="#6E44FF" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="min-h-screen bg-background antialiased">
         <Providers>{children}</Providers>
