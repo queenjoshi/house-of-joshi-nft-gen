@@ -98,7 +98,7 @@ export function Header() {
   const isCorrectNetwork = isBaseNetwork(chainId);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl">
+    <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between gap-2 px-4 md:gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
