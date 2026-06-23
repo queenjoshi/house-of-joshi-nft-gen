@@ -138,16 +138,16 @@ export default function MintPage({ params }: MintPageProps) {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 py-8">
+      <main className="flex-1 py-6 md:py-8">
         <div className="container px-4 max-w-6xl">
           {/* Banner */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative h-48 md:h-64 rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-royal-500/20 to-gold-500/20"
+            className="relative h-36 sm:h-44 md:h-56 lg:h-64 rounded-xl sm:rounded-2xl overflow-hidden mb-4 md:mb-6 bg-gradient-to-br from-royal-500/20 to-gold-500/20"
           >
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-              <Crown className="h-16 w-16 opacity-30" />
+              <Crown className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 opacity-30" />
             </div>
           </motion.div>
 
@@ -156,44 +156,44 @@ export default function MintPage({ params }: MintPageProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="flex flex-col md:flex-row items-start gap-6 mb-8"
+            className="flex flex-col md:flex-row items-start gap-4 md:gap-6 mb-6 md:mb-8"
           >
             {/* Logo */}
-            <div className="relative -mt-20 md:-mt-16 ml-4 z-10">
-              <div className="w-28 h-28 md:w-32 md:h-32 rounded-2xl border-4 border-background bg-card flex items-center justify-center">
-                <Crown className="h-12 w-12 text-muted-foreground opacity-50" />
+            <div className="relative -mt-16 sm:-mt-18 md:-mt-16 ml-2 sm:ml-4 z-10">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-xl sm:rounded-2xl border-4 border-background bg-card flex items-center justify-center">
+                <Crown className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-muted-foreground opacity-50" />
               </div>
             </div>
 
             {/* Info */}
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="font-display text-3xl md:text-4xl font-bold">
+            <div className="flex-1 pt-2 sm:pt-0">
+              <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                <h1 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">
                   Collection
                 </h1>
-                <Shield className="h-5 w-5 text-gold-500 opacity-50" />
+                <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-gold-500 opacity-50" />
               </div>
-              <p className="text-muted-foreground mb-2">
+              <p className="text-muted-foreground text-xs sm:text-sm mb-1 sm:mb-2 break-all">
                 Contract: {contractAddress}
               </p>
             </div>
           </motion.div>
 
           {/* Main Content Grid */}
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
             {/* Left Column - Preview */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 md:space-y-6">
               {/* NFT Preview */}
               <Card className="royal-card">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Crown className="h-5 w-5 text-crown" />
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-crown" />
                     Preview
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="aspect-square rounded-xl bg-royal-950/50 flex items-center justify-center">
-                    <Crown className="h-24 w-24 text-muted-foreground opacity-30" />
+                    <Crown className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-muted-foreground opacity-30" />
                   </div>
                 </CardContent>
               </Card>
@@ -201,10 +201,10 @@ export default function MintPage({ params }: MintPageProps) {
               {/* Description */}
               <Card className="royal-card">
                 <CardHeader>
-                  <CardTitle>Description</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">Description</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     Collection description will appear here once loaded.
                   </p>
                 </CardContent>
@@ -212,29 +212,29 @@ export default function MintPage({ params }: MintPageProps) {
             </div>
 
             {/* Right Column - Mint */}
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {/* Mint Card */}
-              <Card className="royal-card-gold sticky top-24">
-                <CardContent className="pt-6 space-y-6">
+              <Card className="royal-card-gold sticky top-20 md:top-24">
+                <CardContent className="pt-4 md:pt-6 space-y-4 md:space-y-6">
                   {/* Stats Row */}
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="grid grid-cols-3 gap-2 md:gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold gold-text">0</p>
-                      <p className="text-xs text-muted-foreground">Minted</p>
+                      <p className="text-xl sm:text-2xl font-bold gold-text">0</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Minted</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold gold-text">0</p>
-                      <p className="text-xs text-muted-foreground">Remaining</p>
+                      <p className="text-xl sm:text-2xl font-bold gold-text">0</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Remaining</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold gold-text">0</p>
-                      <p className="text-xs text-muted-foreground">ETH Each</p>
+                      <p className="text-xl sm:text-2xl font-bold gold-text">0</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">ETH Each</p>
                     </div>
                   </div>
 
                   {/* Progress */}
                   <div>
-                    <div className="flex justify-between text-sm mb-2">
+                    <div className="flex justify-between text-xs sm:text-sm mb-2">
                       <span className="text-muted-foreground">Progress</span>
                       <span className="font-medium">0%</span>
                     </div>
@@ -245,7 +245,7 @@ export default function MintPage({ params }: MintPageProps) {
 
                   {/* Network Warning */}
                   {isConnected && !isCorrectNetwork && (
-                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm">
+                    <div className="p-2 sm:p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-xs sm:text-sm">
                       <p className="font-medium text-destructive mb-1">Wrong Network</p>
                       <p className="text-muted-foreground">
                         Please switch to Base to mint

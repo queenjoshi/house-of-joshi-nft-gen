@@ -97,36 +97,36 @@ ${JSON.stringify(collections, null, 2)}
       <main className="flex-1 py-8 md:py-12">
         <div className="container px-4 max-w-7xl mx-auto">
           {/* Header Section */}
-          <div className="mb-8 md:mb-12">
+          <div className="mb-6 md:mb-8 lg:mb-12">
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6"
+              className="mb-4 md:mb-6"
             >
-              <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-3">
+              <h1 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 md:mb-2 lg:mb-3">
                 <span className="block mb-1 md:mb-2">NFT Collections</span>
-                <span className="text-amber-400 text-2xl md:text-3xl lg:text-4xl">Created on House of Joshi</span>
+                <span className="text-amber-400 text-xl sm:text-2xl md:text-3xl lg:text-4xl">Created on House of Joshi</span>
               </h1>
-              <p className="text-muted-foreground text-sm md:text-base lg:text-lg max-w-2xl">
+              <p className="text-muted-foreground text-xs sm:text-sm md:text-base lg:text-lg max-w-2xl">
                 Discover and mint from all collections created through the House of Joshi Launchpad.
               </p>
             </motion.div>
 
             {/* Controls Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-royal-500/10 border border-royal-500/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3 md:p-4 rounded-lg bg-royal-500/10 border border-royal-500/20">
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm text-muted-foreground font-medium">Layout:</span>
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-2">
                   <Button
                     size="sm"
                     variant={layout === 'grid' ? 'default' : 'outline'}
                     onClick={() => setLayout('grid')}
                     className={cn(
-                      "h-8 px-2 sm:px-3 text-xs sm:text-sm",
+                      "h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm",
                       layout === 'grid' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'
                     )}
                   >
-                    <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1 md:mr-2" />
                     <span className="hidden sm:inline">Grid</span>
                   </Button>
                   <Button
@@ -134,24 +134,24 @@ ${JSON.stringify(collections, null, 2)}
                     variant={layout === 'list' ? 'default' : 'outline'}
                     onClick={() => setLayout('list')}
                     className={cn(
-                      "h-8 px-2 sm:px-3 text-xs sm:text-sm",
+                      "h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm",
                       layout === 'list' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'
                     )}
                   >
-                    <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                    <List className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1 md:mr-2" />
                     <span className="hidden sm:inline">List</span>
                   </Button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <div className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+              <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap">
+                <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground whitespace-nowrap">
                   {collections.length} collection{collections.length !== 1 ? 's' : ''}
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="royal-border h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                  className="royal-border h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm"
                   onClick={handleRefresh}
                   title="Refresh collections"
                 >
@@ -162,7 +162,7 @@ ${JSON.stringify(collections, null, 2)}
                   variant="ghost"
                   onClick={handleDebug}
                   title="Show debug info"
-                  className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                  className="h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm"
                 >
                   Debug
                 </Button>
@@ -176,22 +176,22 @@ ${JSON.stringify(collections, null, 2)}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-12"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-8 md:mb-12"
             >
               <AnimatePresence>
                 {collections.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="col-span-full text-center py-12"
+                    className="col-span-full text-center py-8 md:py-12"
                   >
-                    <Crown className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <h3 className="text-lg font-semibold mb-2">No Collections Yet</h3>
-                    <p className="text-muted-foreground mb-6">
+                    <Crown className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 md:mb-4 opacity-50" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-2">No Collections Yet</h3>
+                    <p className="text-muted-foreground text-sm mb-4 md:mb-6 max-w-md mx-auto">
                       Collections will appear here as they are deployed through House of Joshi Launchpad.
                     </p>
                     <Link href="/launchpad">
-                      <Button className="bg-amber-500 hover:bg-amber-600 text-white">Create Your Collection</Button>
+                      <Button className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-2">Create Your Collection</Button>
                     </Link>
                   </motion.div>
                 ) : (
@@ -207,7 +207,7 @@ ${JSON.stringify(collections, null, 2)}
                         <Card className="royal-card cursor-pointer h-full overflow-hidden hover:shadow-royal transition-all duration-300">
                           {/* Banner Image */}
                           {collection.bannerImage && (
-                            <div className="relative w-full h-32 bg-royal-950/50 overflow-hidden">
+                            <div className="relative w-full h-24 sm:h-28 md:h-32 bg-royal-950/50 overflow-hidden">
                               <img
                                 src={collection.bannerImage}
                                 alt={`${collection.name} banner`}
@@ -226,27 +226,27 @@ ${JSON.stringify(collections, null, 2)}
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-royal-500/20 to-amber-500/20">
-                                <Crown className="h-12 w-12 text-amber-400 opacity-50" />
+                                <Crown className="h-10 w-10 sm:h-12 sm:w-12 text-amber-400 opacity-50" />
                               </div>
                             )}
                             {collection.isVerified && (
-                              <div className="absolute top-3 right-3">
-                                <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                              <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
+                                <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5">
                                   ✓ Verified
                                 </Badge>
                               </div>
                             )}
                           </div>
 
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                             {/* Collection Name */}
                             <div>
-                              <h3 className="font-display text-lg font-bold mb-1">{collection.name}</h3>
-                              <p className="text-sm text-muted-foreground">{collection.symbol}</p>
+                              <h3 className="font-display text-base sm:text-lg font-bold mb-0.5 sm:mb-1">{collection.name}</h3>
+                              <p className="text-xs sm:text-sm text-muted-foreground">{collection.symbol}</p>
                             </div>
 
                             {/* Stats Grid */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3">
                               <div className="p-2 rounded bg-royal-500/10 border border-royal-500/20">
                                 <p className="text-xs text-muted-foreground mb-1">Minted</p>
                                 <p className="font-semibold text-amber-400">

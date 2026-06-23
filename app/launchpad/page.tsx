@@ -729,13 +729,13 @@ export default function CreatePage() {
         <div className="container px-4 max-w-6xl mx-auto">
           {/* Step Navigation */}
           <div className="mb-6 md:mb-8">
-            <div className="flex items-center justify-between gap-1 md:gap-2 bg-gradient-to-r from-royal-500/10 to-crown/10 p-3 md:p-6 rounded-lg md:rounded-xl border border-royal-500/20">
+            <div className="flex items-center justify-between gap-1 md:gap-2 bg-gradient-to-r from-royal-500/10 to-crown/10 p-2 sm:p-3 md:p-6 rounded-lg md:rounded-xl border border-royal-500/20 overflow-x-auto">
               {STEPS.map((step, i) => (
                 <React.Fragment key={step.id}>
                   <button
                     onClick={() => setCurrentStep(i)}
                     className={cn(
-                      'flex flex-col items-center gap-1 md:gap-2 transition-all duration-300 flex-1',
+                      'flex flex-col items-center gap-1 md:gap-2 transition-all duration-300 flex-1 min-w-[60px] sm:min-w-[80px]',
                       currentStep === i
                         ? 'text-crown'
                         : i < currentStep
@@ -745,7 +745,7 @@ export default function CreatePage() {
                   >
                     <div
                       className={cn(
-                        'w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 font-display font-bold text-xs md:text-base',
+                        'w-7 h-7 sm:w-8 sm:h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 font-display font-bold text-[10px] sm:text-xs md:text-base',
                         currentStep === i
                           ? 'bg-gradient-to-br from-crown/30 to-royal-500/20 border-2 border-crown shadow-lg shadow-crown/50'
                           : i < currentStep
@@ -753,16 +753,16 @@ export default function CreatePage() {
                           : 'bg-royal-500/10 border-2 border-royal-500/30'
                       )}
                     >
-                      <step.icon className="h-3 w-3 md:h-5 md:w-5" />
+                      <step.icon className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
                     </div>
-                    <span className="text-xs font-medium hidden md:block text-center leading-tight">
+                    <span className="text-[10px] sm:text-xs font-medium hidden sm:block text-center leading-tight">
                       {step.label}
                     </span>
                   </button>
                   {i < STEPS.length - 1 && (
                     <div
                       className={cn(
-                        'flex-1 h-0.5 md:h-1 mx-0.5 md:mx-2 rounded-full',
+                        'flex-1 h-0.5 md:h-1 mx-0.5 md:mx-2 rounded-full min-w-[8px]',
                         i < currentStep ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-royal-500/20'
                       )}
                     />
@@ -793,7 +793,7 @@ export default function CreatePage() {
                       Set up your collection's basic information
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-4 md:space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="name" className="text-sm md:text-base">Collection Name</Label>
@@ -841,7 +841,7 @@ export default function CreatePage() {
                             description: e.target.value,
                           })
                         }
-                        className="royal-textarea"
+                        className="royal-textarea text-sm md:text-base"
                       />
                     </div>
 
@@ -856,7 +856,7 @@ export default function CreatePage() {
                           <img
                             src={collectionDetails.bannerImage}
                             alt="Banner Preview"
-                            className="w-full h-48 object-cover"
+                            className="w-full h-32 sm:h-40 md:h-48 object-cover"
                           />
                           <Button
                             size="sm"
@@ -873,10 +873,10 @@ export default function CreatePage() {
                           </Button>
                         </div>
                       ) : (
-                        <Label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-royal-500/30 rounded-lg cursor-pointer hover:border-gold-500/50 transition-colors">
+                        <Label className="flex items-center justify-center w-full h-20 sm:h-24 border-2 border-dashed border-royal-500/30 rounded-lg cursor-pointer hover:border-gold-500/50 transition-colors">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                            <Upload className="h-6 w-6" />
-                            <span className="text-sm">Drop banner image or click to browse</span>
+                            <Upload className="h-5 w-5 sm:h-6 sm:w-6" />
+                            <span className="text-xs sm:text-sm">Drop banner image or click to browse</span>
                           </div>
                           <input
                             type="file"
@@ -912,7 +912,7 @@ export default function CreatePage() {
                           <img
                             src={collectionDetails.coverImage}
                             alt="Cover Preview"
-                            className="w-full h-48 object-cover"
+                            className="w-full h-32 sm:h-40 md:h-48 object-cover"
                           />
                           <Button
                             size="sm"
@@ -929,10 +929,10 @@ export default function CreatePage() {
                           </Button>
                         </div>
                       ) : (
-                        <Label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-royal-500/30 rounded-lg cursor-pointer hover:border-gold-500/50 transition-colors">
+                        <Label className="flex items-center justify-center w-full h-20 sm:h-24 border-2 border-dashed border-royal-500/30 rounded-lg cursor-pointer hover:border-gold-500/50 transition-colors">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                            <Upload className="h-6 w-6" />
-                            <span className="text-sm">Drop cover image or click to browse</span>
+                            <Upload className="h-5 w-5 sm:h-6 sm:w-6" />
+                            <span className="text-xs sm:text-sm">Drop cover image or click to browse</span>
                           </div>
                           <input
                             type="file"
@@ -957,7 +957,7 @@ export default function CreatePage() {
                       )}
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="maxSupply">Max Supply</Label>
                         <Input
