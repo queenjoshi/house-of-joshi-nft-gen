@@ -1,7 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider, useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { createAppKit } from '@reown/appkit';
 import { EthersAdapter } from '@reown/appkit-adapter-ethers';
@@ -13,7 +13,7 @@ let appKitInstance: any = null;
 
 const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID || '';
 
-export const initializeReownAppKit = () => {
+export const initializeReownAppKit = (themeMode: string = 'dark') => {
   if (typeof window === 'undefined' || appKitInstance) return;
   
   try {
@@ -39,7 +39,7 @@ export const initializeReownAppKit = () => {
         allWallets: true,
         socials: false,
       },
-      themeMode: 'dark',
+      themeMode: themeMode as any,
       themeVariables: {
         '--w3m-color-mix': '#6E44FF',
         '--w3m-color-mix-strength': 40,
@@ -58,7 +58,8 @@ export const initializeReownAppKit = () => {
   }
 };
 
-export function Providers({ children }: { children: React.ReactNode }) {
+function ProvidersInner({ children }: { children: React.ReactNode }) {
+  const { theme, systemTheme } = useTheme();
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -71,24 +72,31 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
-  // Initialize AppKit on client side
+  // Initialize AppKit on client side with current theme
   useEffect(() => {
     if (projectId) {
-      initializeReownAppKit();
+      const currentTheme = theme === 'system' ? systemTheme : theme;
+      initializeReownAppKit(currentTheme || 'dark');
     }
-  }, []);
+  }, [theme, systemTheme]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        enableSystem
-        disableTransitionOnChange
-      >
-        <ServiceWorkerRegistration />
-        {children}
-      </ThemeProvider>
+      <ServiceWorkerRegistration />
+      {children}
     </QueryClientProvider>
+  );
+}
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <ProvidersInner>{children}</ProvidersInner>
+    </ThemeProvider>
   );
 }
