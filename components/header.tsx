@@ -99,13 +99,13 @@ export function Header() {
 
   return (
     <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center justify-between gap-2 px-4 md:gap-4">
+      <div className="container flex h-16 items-center justify-center gap-2 px-4 md:gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
           <div className="relative flex items-center justify-center">
-            <img 
-              src="/joshi-logo.png" 
-              alt="Joshi Logo" 
+            <img
+              src="/joshi-logo.png"
+              alt="Joshi Logo"
               className="h-8 w-8 animate-crown-shine"
             />
             <div className="absolute inset-0 bg-crown/20 blur-xl rounded-full" />
@@ -130,7 +130,7 @@ export function Header() {
         </nav>
 
         {/* Right Side Actions */}
-        <div className="flex items-center gap-2 md:gap-3 ml-auto">
+        <div className="flex items-center gap-2 md:gap-3">
           {/* Theme Toggle */}
           {mounted && (
             <Button
