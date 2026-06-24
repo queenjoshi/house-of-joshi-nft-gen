@@ -33,7 +33,7 @@ const FOOTER_LINKS = {
   services: [
     { label: 'House of Joshi Swap & Bridge', href: 'https://swap.thehouseofjoshi.com/', external: true },
     { label: 'Legacy Vault', href: '/vault', external: false },
-    { label: 'DreamWeaver', href: '/dreamweaver', external: false },
+    { label: 'DreamWeaver', href: 'https://dreamweaver.thehouseofjoshi.com/', external: true },
     { label: 'Contact', href: '/contact', external: false },
   ],
   legal: [
