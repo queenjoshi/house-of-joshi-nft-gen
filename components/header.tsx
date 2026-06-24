@@ -125,14 +125,14 @@ export function Header() {
         </nav>
 
         {/* Right Side Actions */}
-        <div className="flex items-center gap-1 md:gap-3 justify-end flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 justify-end flex-shrink-0">
           {/* Theme Toggle - Desktop Only */}
           {mounted && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="relative overflow-hidden h-9 w-9 md:h-11 md:w-11 hidden md:flex"
+              className="relative overflow-hidden h-8 w-8 md:h-11 md:w-11 hidden md:flex"
             >
               <Sun className="h-4 w-4 md:h-5 md:w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
@@ -145,7 +145,7 @@ export function Header() {
             <Button
               variant="destructive"
               size="sm"
-              className="text-xs h-9 md:h-10 px-2 md:px-3 hidden lg:inline-flex gap-2"
+              className="text-xs h-8 md:h-10 px-2 md:px-3 hidden lg:inline-flex gap-2"
               onClick={handleSwitchNetwork}
               disabled={isSwitchingNetwork}
             >
@@ -160,13 +160,8 @@ export function Header() {
             </Button>
           )}
 
-          {/* RainbowKit Connect Button */}
+          {/* RainbowKit Connect Button - Desktop */}
           <div className="hidden md:block">
-            <ConnectButton />
-          </div>
-
-          {/* Mobile Connect Button */}
-          <div className="md:hidden">
             <ConnectButton />
           </div>
 
@@ -174,7 +169,7 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden h-9 w-9"
+            className="md:hidden h-8 w-8"
             onClick={toggleMobileMenu}
           >
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -240,6 +235,11 @@ export function Header() {
                   </span>
                 </button>
               )}
+
+              {/* Connect Wallet - Mobile */}
+              <div className="px-4 py-3">
+                <ConnectButton />
+              </div>
             </nav>
           </motion.div>
         )}

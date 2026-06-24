@@ -46,25 +46,25 @@ const FOOTER_LINKS = {
 export function Footer() {
   return (
     <footer className="border-t border-royal-500/20 bg-background/80 backdrop-blur-xl">
-      <div className="container px-4 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+      <div className="container px-4 py-8 sm:py-12">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 sm:gap-8">
           {/* Brand Column */}
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
+          <div className="col-span-2 sm:col-span-1">
+            <Link href="/" className="flex items-center gap-2 mb-3 sm:mb-4">
               <img 
                 src="/joshi-logo.png" 
                 alt="Joshi Logo" 
-                className="h-6 w-6"
+                className="h-5 w-5 sm:h-6 sm:w-6"
               />
-              <span className="font-display text-xl font-bold gold-text">
+              <span className="font-display text-lg sm:text-xl font-bold gold-text hidden sm:inline">
                 House of Joshi
               </span>
             </Link>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-3">
               Create, launch, and mint generative NFT collections on Base.
               The premier NFT launchpad with royalty-themed aesthetics.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <a
                 href="mailto:support@thehouseofjoshi.com"
                 target="_blank"
@@ -72,7 +72,7 @@ export function Footer() {
                 className="text-muted-foreground hover:text-crown transition-colors"
                 title="Email"
               >
-                <Mail className="h-5 w-5" />
+                <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
               </a>
               <a
                 href="https://twitter.com/thehouseofjoshi"
@@ -81,7 +81,7 @@ export function Footer() {
                 className="text-muted-foreground hover:text-crown transition-colors"
                 title="X (Twitter)"
               >
-                <XIcon className="h-5 w-5" />
+                <XIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               </a>
               <a
                 href="https://discord.com/invite/uH9zVeAwDu"
@@ -90,7 +90,7 @@ export function Footer() {
                 className="text-muted-foreground hover:text-crown transition-colors"
                 title="Discord"
               >
-                <DiscordIcon className="h-5 w-5" />
+                <DiscordIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               </a>
               <a
                 href="https://instagram.com/thehouseofjoshi_"
@@ -99,24 +99,24 @@ export function Footer() {
                 className="text-muted-foreground hover:text-crown transition-colors"
                 title="Instagram"
               >
-                <Instagram className="h-5 w-5" />
+                <Instagram className="h-4 w-4 sm:h-5 sm:w-5" />
               </a>
             </div>
           </div>
 
           {/* Product Links */}
           <div>
-            <h3 className="font-display font-semibold text-sm uppercase tracking-wider mb-4 text-foreground">
+            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
               Product
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5 sm:space-y-2">
               {FOOTER_LINKS.product.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
                     target={link.external ? '_blank' : undefined}
                     rel={link.external ? 'noopener noreferrer' : undefined}
-                    className="text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
+                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
                   >
                     {link.label}
                     {link.external && <ExternalLink className="h-3 w-3" />}
@@ -128,15 +128,15 @@ export function Footer() {
 
           {/* Resources Links */}
           <div>
-            <h3 className="font-display font-semibold text-sm uppercase tracking-wider mb-4 text-foreground">
+            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
               Resources
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5 sm:space-y-2">
               {FOOTER_LINKS.resources.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
+                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
                   >
                     {link.label}
                     <ExternalLink className="h-3 w-3" />
@@ -148,17 +148,17 @@ export function Footer() {
 
           {/* Services Links */}
           <div>
-            <h3 className="font-display font-semibold text-sm uppercase tracking-wider mb-4 text-foreground">
+            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
               Services
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5 sm:space-y-2">
               {FOOTER_LINKS.services.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
                     target={link.external ? '_blank' : undefined}
                     rel={link.external ? 'noopener noreferrer' : undefined}
-                    className="text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
+                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
                   >
                     {link.label}
                     {link.external && <ExternalLink className="h-3 w-3" />}
@@ -170,15 +170,15 @@ export function Footer() {
 
           {/* Legal Links */}
           <div>
-            <h3 className="font-display font-semibold text-sm uppercase tracking-wider mb-4 text-foreground">
+            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
               Legal
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5 sm:space-y-2">
               {FOOTER_LINKS.legal.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-crown transition-colors"
+                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors"
                   >
                     {link.label}
                   </Link>
@@ -189,11 +189,11 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-royal-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-royal-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} The House of Joshi. All rights reserved.
           </p>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
             Built on Base
           </p>
         </div>
