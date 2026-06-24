@@ -50,6 +50,16 @@
     {
       "platform": "web",
       "url": "https://thehouseofjoshi.com"
+    },
+    {
+      "platform": "playstore",
+      "id": "com.houseofjoshi.app",
+      "url": "https://play.google.com/store/apps/details?id=com.houseofjoshi.app"
+    },
+    {
+      "platform": "itunes",
+      "id": "com.houseofjoshi.app",
+      "url": "https://apps.apple.com/app/com.houseofjoshi.app"
     }
   ],
   "prefer_related_applications": false,
@@ -60,5 +70,29 @@
       "type": "image/png",
       "form_factor": "wide"
     }
-  ]
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+joshi",
+      "url": "/?wallet=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "images",
+          "accept": ["image/*"]
+        }
+      ]
+    }
+  },
+  "handle_links": "preferred",
+  "capture_links": "existing-client-event"
 }
