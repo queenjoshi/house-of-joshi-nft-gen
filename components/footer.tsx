@@ -28,9 +28,7 @@ const FOOTER_LINKS = {
     { label: 'Dashboard', href: '/dashboard', external: false },
   ],
   resources: [
-    { label: 'Documentation', href: '/docs', external: false },
     { label: 'FAQ', href: '/faq', external: false },
-    { label: 'API Reference', href: '/api-reference', external: false },
   ],
   services: [
     { label: 'House of Joshi Swap & Bridge', href: 'https://swap.thehouseofjoshi.com/', external: true },
