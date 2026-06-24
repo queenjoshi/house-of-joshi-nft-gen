@@ -13,19 +13,12 @@ import {
   X,
   Sun,
   Moon,
-  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useWalletStore, useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA } from '@/lib/store';
+import { useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { useReownModal } from '@/hooks/useReownModal';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount, useDisconnect, useSwitchChain } from 'wagmi';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
@@ -37,88 +30,15 @@ const NAV_LINKS = [
 
 export function Header() {
   const { theme, setTheme } = useTheme();
-  const { address, chainId, isConnected, disconnect: disconnectStore, setAddress, setChainId } = useWalletStore();
   const { isMobileMenuOpen, toggleMobileMenu } = useUIStore();
-  const { openModal, disconnect: disconnectReown, getAddress, getChainId, isReady } = useReownModal();
+  const { address, chainId, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Sync Reown wallet state with store
-  useEffect(() => {
-    if (!isReady) return;
-
-    const checkConnection = async () => {
-      const addr = getAddress();
-      const chain = getChainId();
-      
-      if (addr && chain) {
-        setAddress(addr);
-        setChainId(chain);
-      }
-    };
-
-    checkConnection();
-
-    // Set up interval to check connection state
-    const interval = setInterval(checkConnection, 2000);
-
-    return () => clearInterval(interval);
-  }, [isReady, getAddress, getChainId, setAddress, setChainId]);
-
-  const isInAppBrowser = () => {
-    if (typeof window === 'undefined') return false;
-    const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
-    
-    // Check for common in-app browsers
-    const inAppBrowsers = [
-      'FBAN',      // Facebook
-      'FBAV',      // Facebook
-      'Twitter',   // Twitter/X
-      'Line',      // Line
-      'Instagram', // Instagram
-      'MicroMessenger', // WeChat
-      'WhatsApp',  // WhatsApp
-      'Telegram',  // Telegram
-      'Viber',     // Viber
-      'Snapchat',  // Snapchat
-      'LinkedIn',  // LinkedIn
-      'Slack',     // Slack
-      'Discord',   // Discord
-    ];
-    
-    return inAppBrowsers.some(browser => ua.includes(browser));
-  };
-
-  const handleConnectWallet = async () => {
-    setIsConnecting(true);
-    try {
-      // Check if user is in an in-app browser
-      if (isInAppBrowser()) {
-        alert(
-          'For the best wallet connection experience, please open this page in your device\'s default browser (Chrome, Safari, etc.)\n\n' +
-          'In-app browsers may not support wallet app connections properly.'
-        );
-      }
-      openModal();
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    try {
-      await disconnectReown();
-      disconnectStore();
-    } catch (error) {
-      console.error('Failed to disconnect wallet:', error);
-    }
-  };
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -180,70 +100,21 @@ export function Header() {
               variant="destructive"
               size="sm"
               className="text-xs h-9 md:h-10 px-2 md:px-3 hidden lg:inline-flex"
-              onClick={() => {
-                if (typeof window !== 'undefined' && (window as any).ethereum) {
-                  (window as any).ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: `0x${BASE_MAINNET.id.toString(16)}` }],
-                  }).catch(async (err: any) => {
-                    if (err.code === 4902) {
-                      await (window as any).ethereum.request({
-                        method: 'wallet_addEthereumChain',
-                        params: [BASE_MAINNET],
-                      });
-                    }
-                  });
-                }
-              }}
+              onClick={() => switchChain({ chainId: BASE_MAINNET.id })}
             >
               Switch to Base
             </Button>
           )}
 
-          {/* Wallet Connection */}
-          {!isConnected ? (
-            <Button
-              onClick={handleConnectWallet}
-              disabled={isConnecting}
-              className="gold-button h-9 md:h-11 px-2 md:px-4 text-xs md:text-base whitespace-nowrap"
-              size="sm"
-            >
-              <Wallet className="mr-1 md:mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">{isConnecting ? 'Connecting...' : 'Connect'}</span>
-              <span className="sm:hidden">{isConnecting ? '...' : 'Connect'}</span>
-            </Button>
-          ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className={cn(
-                  "border-gold-500/50 hover:border-gold-400 transition-colors h-9 md:h-11 px-2 md:px-4 text-xs md:text-sm",
-                  !isCorrectNetwork && "border-destructive hover:border-destructive"
-                )}>
-                  <div className={cn(
-                    "w-2 h-2 rounded-full mr-1 md:mr-2 flex-shrink-0",
-                    isCorrectNetwork ? "bg-green-500" : "bg-destructive"
-                  )} />
-                  <span className="hidden sm:inline">{formatAddress(address!)}</span>
-                  <span className="sm:hidden text-xs">{address?.slice(0, 4)}...</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 md:w-56 royal-card">
-                <DropdownMenuItem className="flex items-center gap-2 text-xs md:text-sm">
-                  <span className="text-xs text-muted-foreground">Network:</span>
-                  <span className={cn(
-                    "text-xs",
-                    isCorrectNetwork ? "text-green-500" : "text-destructive"
-                  )}>
-                    {chainId === BASE_MAINNET.id ? 'Base Mainnet' : chainId === BASE_SEPOLIA.id ? 'Base Sepolia' : 'Unsupported'}
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-royal-500/20" />
-                <DropdownMenuItem onClick={handleDisconnect} className="text-destructive focus:text-destructive text-xs md:text-sm">
-                  Disconnect
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {/* RainbowKit Connect Button */}
+          <div className="hidden md:block">
+            <ConnectButton />
+          </div>
+
+          {/* Mobile Connect Button */}
+          <div className="md:hidden">
+            <ConnectButton />
+          </div>
 
           {/* Mobile Menu Toggle */}
           <Button
@@ -299,21 +170,7 @@ export function Header() {
               {/* Network Switch - Mobile */}
               {isConnected && !isCorrectNetwork && (
                 <button
-                  onClick={() => {
-                    if (typeof window !== 'undefined' && (window as any).ethereum) {
-                      (window as any).ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: `0x${BASE_MAINNET.id.toString(16)}` }],
-                      }).catch(async (err: any) => {
-                        if (err.code === 4902) {
-                          await (window as any).ethereum.request({
-                            method: 'wallet_addEthereumChain',
-                            params: [BASE_MAINNET],
-                          });
-                        }
-                      });
-                    }
-                  }}
+                  onClick={() => switchChain({ chainId: BASE_MAINNET.id })}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors text-sm w-full text-left"
                 >
                   <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">

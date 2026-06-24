@@ -36,8 +36,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { useWalletStore, isBaseNetwork, BASE_MAINNET, useCollectionsStore } from '@/lib/store';
+import { isBaseNetwork, BASE_MAINNET, useCollectionsStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
 import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
 import { CONTRACTS } from '@/lib/config';
 
@@ -202,7 +203,9 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
 }
 
 export default function CreatePage() {
-  const { isConnected, address, chainId } = useWalletStore();
+  const { isConnected, address, chainId } = useAccount();
+  const { switchChain } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
   const addDeployedCollection = useCollectionsStore((state) => state.addDeployedCollection);
   const [currentStep, setCurrentStep] = useState(0);
   const [layers, setLayers] = useState<Layer[]>([]);
@@ -451,6 +454,11 @@ export default function CreatePage() {
     setVerificationUrl(null);
 
     try {
+      // Switch to Base if not already on it
+      if (chainId !== BASE_MAINNET.id && chainId !== 84532) {
+        await switchChain({ chainId: BASE_MAINNET.id });
+      }
+
       // Upload collection metadata to IPFS with real collection details
       console.log('Preparing IPFS metadata...');
       
@@ -510,28 +518,12 @@ export default function CreatePage() {
       // Dynamically import viem functions only when needed (client-side)
       const { encodeFunctionData, parseEther } = await import('viem');
 
-      // Check if window.ethereum exists
-      if (!window.ethereum) {
-        throw new Error('Web3 wallet not found. Please install MetaMask or another Web3 wallet.');
-      }
-
-      // Request to switch to correct chain if needed
-      const targetChainId = chainId === 84532 ? '0x14a34' : '0x2105'; // Base Sepolia or Base Mainnet
-      try {
-        await (window.ethereum as any).request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: targetChainId }],
-        });
-      } catch (switchError: any) {
-        // Chain not added to wallet
-        if (switchError.code === 4902) {
-          throw new Error('Base network not added to your wallet. Please add it manually.');
-        }
+      if (!walletClient) {
+        throw new Error('Wallet client not available. Please connect your wallet.');
       }
 
       // Set deployment fee to 0.0001 ETH
       const deploymentFeeWei = parseEther('0.0001');
-      const deploymentFee = '0x' + deploymentFeeWei.toString(16);
 
       // Prepare collection parameters with IPFS URIs
       const collectionParams = {
@@ -560,21 +552,16 @@ export default function CreatePage() {
         args: [collectionParams],
       });
 
-      // Prepare transaction with deployment fee
-      const txParams = {
-        from: address,
-        to: CONTRACTS.FACTORY as `0x${string}`,
-        data: encodedData,
-        value: deploymentFee, // Send the deployment fee
-      };
-
-      // Send transaction via wallet
-      const txHash = await (window.ethereum as any).request({
-        method: 'eth_sendTransaction',
-        params: [txParams],
+      // Send transaction via Wagmi wallet client
+      const hash = await walletClient.writeContract({
+        address: CONTRACTS.FACTORY as `0x${string}`,
+        abi: FACTORY_ABI,
+        functionName: 'createCollection',
+        args: [collectionParams],
+        value: deploymentFeeWei,
       });
 
-      setDeployTxHash(txHash);
+      setDeployTxHash(hash);
       
       // Wait for transaction confirmation
       const maxWaitTime = 5 * 60 * 1000; // 5 minutes
@@ -585,13 +572,15 @@ export default function CreatePage() {
 
       while (!receipt && Date.now() - startTime < maxWaitTime) {
         try {
-          const result = await (window.ethereum as any).request({
-            method: 'eth_getTransactionReceipt',
-            params: [txHash],
-          });
+          if (typeof window !== 'undefined' && (window as any).ethereum) {
+            const result = await (window.ethereum as any).request({
+              method: 'eth_getTransactionReceipt',
+              params: [hash],
+            });
 
-          if (result) {
-            receipt = result;
+            if (result) {
+              receipt = result;
+            }
           }
         } catch (e) {
           // Ignore polling errors
@@ -613,7 +602,6 @@ export default function CreatePage() {
       }
 
       // Parse CollectionCreated event from logs
-      // Event signature: CollectionCreated(indexed creator, indexed collection, string name, string symbol)
       let deployedCollectionAddress: string | null = null;
       
       console.log('Transaction receipt:', {
@@ -634,10 +622,6 @@ export default function CreatePage() {
           // Check if this is an event from the factory contract
           if (log.address?.toLowerCase() === CONTRACTS.FACTORY.toLowerCase()) {
             console.log('Found factory event with topics:', log.topics?.length);
-            // The second indexed parameter (collection address) is at topics[2]
-            // topics[0] = event signature
-            // topics[1] = first indexed param (creator)
-            // topics[2] = second indexed param (collection address)
             if (log.topics && log.topics.length >= 3) {
               const collectionAddr = '0x' + log.topics[2].slice(-40);
               console.log('Extracted collection address from event:', collectionAddr);
@@ -656,8 +640,8 @@ export default function CreatePage() {
       
       setDeployStatus('deployed');
       setContractAddress(deployedCollectionAddress || 'See transaction details');
-      setDeployTxHash(txHash);
-      setVerificationUrl(`${explorerBase}/tx/${txHash}`);
+      setDeployTxHash(hash);
+      setVerificationUrl(`${explorerBase}/tx/${hash}`);
 
       // Save deployed collection to store
       if (deployedCollectionAddress && address) {
@@ -678,7 +662,7 @@ export default function CreatePage() {
           mintPrice: collectionDetails.mintPrice,
           creatorAddress: address,
           deployedAt: Date.now(),
-          txHash: txHash,
+          txHash: hash,
         };
         addDeployedCollection(collectionToSave);
         console.log('Collection saved to store!');
@@ -692,7 +676,7 @@ export default function CreatePage() {
 
       // Attempt automatic verification if we found a contract address
       if (deployedCollectionAddress && deployedCollectionAddress !== 'See transaction details') {
-        await verifyContract(deployedCollectionAddress, chainId as number, txHash);
+        await verifyContract(deployedCollectionAddress, (chainId || BASE_MAINNET.id) as number, hash);
       }
 
     } catch (error: any) {
