@@ -13,12 +13,22 @@ import {
   X,
   Sun,
   Moon,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import dynamic from 'next/dynamic';
 import { useAccount, useDisconnect, useSwitchChain } from 'wagmi';
+import { toast } from 'sonner';
+
+// Lazy load RainbowKit ConnectButton for better bundle size
+const ConnectButton = dynamic(
+  () => import('@rainbow-me/rainbowkit').then((mod) => mod.ConnectButton),
+  { ssr: false, loading: () => <div className="h-9 w-24 animate-pulse bg-muted rounded-md" /> }
+);
 
 const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
@@ -35,16 +45,52 @@ export function Header() {
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
+  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+  const [wasConnected, setWasConnected] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Track wallet connection changes for toast notifications
+  useEffect(() => {
+    if (isConnected && !wasConnected) {
+      toast.success('Wallet Connected', {
+        description: `Connected to ${chainId === BASE_MAINNET.id ? 'Base Mainnet' : chainId === BASE_SEPOLIA.id ? 'Base Sepolia' : 'Unknown Network'}`,
+        icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+      });
+      setWasConnected(true);
+    } else if (!isConnected && wasConnected) {
+      toast.info('Wallet Disconnected', {
+        icon: <AlertCircle className="h-4 w-4 text-orange-500" />,
+      });
+      setWasConnected(false);
+    }
+  }, [isConnected, chainId, wasConnected]);
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
   const isCorrectNetwork = isBaseNetwork(chainId ?? null);
+
+  const handleSwitchNetwork = async () => {
+    setIsSwitchingNetwork(true);
+    try {
+      await switchChain({ chainId: BASE_MAINNET.id });
+      toast.success('Network Switched', {
+        description: 'Switched to Base Mainnet',
+        icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+      });
+    } catch (error) {
+      toast.error('Network Switch Failed', {
+        description: 'Failed to switch to Base Mainnet',
+        icon: <AlertCircle className="h-4 w-4 text-red-500" />,
+      });
+    } finally {
+      setIsSwitchingNetwork(false);
+    }
+  };
 
   return (
     <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl">
@@ -99,10 +145,18 @@ export function Header() {
             <Button
               variant="destructive"
               size="sm"
-              className="text-xs h-9 md:h-10 px-2 md:px-3 hidden lg:inline-flex"
-              onClick={() => switchChain({ chainId: BASE_MAINNET.id })}
+              className="text-xs h-9 md:h-10 px-2 md:px-3 hidden lg:inline-flex gap-2"
+              onClick={handleSwitchNetwork}
+              disabled={isSwitchingNetwork}
             >
-              Switch to Base
+              {isSwitchingNetwork ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Switching...
+                </>
+              ) : (
+                'Switch to Base'
+              )}
             </Button>
           )}
 
@@ -170,13 +224,20 @@ export function Header() {
               {/* Network Switch - Mobile */}
               {isConnected && !isCorrectNetwork && (
                 <button
-                  onClick={() => switchChain({ chainId: BASE_MAINNET.id })}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors text-sm w-full text-left"
+                  onClick={handleSwitchNetwork}
+                  disabled={isSwitchingNetwork}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10 transition-colors text-sm w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-destructive" />
+                    {isSwitchingNetwork ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <div className="w-2 h-2 rounded-full bg-destructive" />
+                    )}
                   </div>
-                  <span className="font-medium">Switch to Base</span>
+                  <span className="font-medium">
+                    {isSwitchingNetwork ? 'Switching...' : 'Switch to Base'}
+                  </span>
                 </button>
               )}
             </nav>
