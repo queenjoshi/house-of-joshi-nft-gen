@@ -233,7 +233,7 @@ export default function CreatePage() {
   const [deployError, setDeployError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const isCorrectNetwork = isBaseNetwork(chainId);
+  const isCorrectNetwork = isBaseNetwork(chainId ?? null);
 
   const addLayer = () => {
     const newLayer: Layer = {

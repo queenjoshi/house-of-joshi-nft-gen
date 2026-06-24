@@ -44,7 +44,7 @@ export function Header() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  const isCorrectNetwork = isBaseNetwork(chainId);
+  const isCorrectNetwork = isBaseNetwork(chainId ?? null);
 
   return (
     <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl">
