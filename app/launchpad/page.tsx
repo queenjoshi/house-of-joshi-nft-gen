@@ -125,6 +125,7 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
+      console.error('Failed to get canvas context');
       resolve('');
       return;
     }
@@ -134,36 +135,44 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
     ctx.fillRect(0, 0, size, size);
 
     let loadedCount = 0;
+    let errorCount = 0;
     let resolved = false;
 
-    if (traitUrls.length === 0) {
+    if (traitUrls.length === 0 || traitUrls.every(url => !url)) {
+      console.warn('No valid trait URLs provided');
       resolve(canvas.toDataURL('image/png'));
       return;
     }
 
-    // Set a timeout to force resolution after 3 seconds
+    // Filter out empty URLs
+    const validUrls = traitUrls.filter(url => url);
+    
+    if (validUrls.length === 0) {
+      resolve(canvas.toDataURL('image/png'));
+      return;
+    }
+
+    // Increased timeout to 10 seconds for better reliability
     const timeout = setTimeout(() => {
       if (!resolved) {
+        console.warn(`Image composition timeout: ${loadedCount}/${validUrls.length} loaded, ${errorCount} errors`);
         resolved = true;
         resolve(canvas.toDataURL('image/png'));
       }
-    }, 3000);
+    }, 10000);
 
     const checkComplete = () => {
-      if (loadedCount === traitUrls.length && !resolved) {
+      if (loadedCount + errorCount === validUrls.length && !resolved) {
         resolved = true;
         clearTimeout(timeout);
+        if (loadedCount === 0) {
+          console.error('All images failed to load');
+        }
         resolve(canvas.toDataURL('image/png'));
       }
     };
 
-    traitUrls.forEach((url) => {
-      if (!url) {
-        loadedCount++;
-        checkComplete();
-        return;
-      }
-
+    validUrls.forEach((url) => {
       const img = new Image();
       // Don't set crossOrigin for data URLs
       if (!url.startsWith('data:')) {
@@ -173,16 +182,17 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
       img.onload = () => {
         try {
           ctx.drawImage(img, 0, 0, size, size);
+          loadedCount++;
         } catch (e) {
-          console.warn('Error drawing image:', e);
+          console.error('Error drawing image:', e);
+          errorCount++;
         }
-        loadedCount++;
         checkComplete();
       };
 
-      img.onerror = () => {
-        console.warn('Error loading trait image');
-        loadedCount++;
+      img.onerror = (e) => {
+        console.error('Error loading trait image:', url, e);
+        errorCount++;
         checkComplete();
       };
 
@@ -210,6 +220,7 @@ export default function CreatePage() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [previewNFTs, setPreviewNFTs] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [uploadingTraits, setUploadingTraits] = useState<{[key: string]: boolean}>({});
 
   // Deployment state
   const [deployStatus, setDeployStatus] = useState<DeployStatus>('idle');
@@ -254,44 +265,53 @@ export default function CreatePage() {
   };
 
   const addTrait = (layerId: string, files: FileList) => {
-    const newTraits: Trait[] = Array.from(files).map((file) => {
+    Array.from(files).forEach((file) => {
+      const traitId = crypto.randomUUID();
+      const traitName = file.name.replace(/\.[^/.]+$/, '');
+      
+      // Set uploading state for this trait
+      setUploadingTraits(prev => ({ ...prev, [traitId]: true }));
+      
       const reader = new FileReader();
-      let preview = '';
       
       reader.onload = (e) => {
         const result = e.target?.result as string;
-        preview = result;
-        // Update the trait with the data URL
+        
+        // Add the trait with the data URL directly
+        const newTrait: Trait = {
+          id: traitId,
+          name: traitName,
+          file,
+          preview: result,
+          rarity: 100,
+        };
+        
         setLayers(current => current.map(l =>
           l.id === layerId
-            ? {
-                ...l,
-                traits: l.traits.map(t =>
-                  t.name === file.name.replace(/\.[^/.]+$/, '')
-                    ? { ...t, preview: result }
-                    : t
-                ),
-              }
+            ? { ...l, traits: [...l.traits, newTrait] }
             : l
         ));
+        
+        // Clear uploading state
+        setUploadingTraits(prev => {
+          const next = { ...prev };
+          delete next[traitId];
+          return next;
+        });
+      };
+      
+      reader.onerror = () => {
+        console.error('Failed to read file:', file.name);
+        // Clear uploading state on error
+        setUploadingTraits(prev => {
+          const next = { ...prev };
+          delete next[traitId];
+          return next;
+        });
       };
       
       reader.readAsDataURL(file);
-      
-      return {
-        id: crypto.randomUUID(),
-        name: file.name.replace(/\.[^/.]+$/, ''),
-        file,
-        preview: URL.createObjectURL(file), // Fallback while loading
-        rarity: 100,
-      };
     });
-
-    setLayers(layers.map(l =>
-      l.id === layerId
-        ? { ...l, traits: [...l.traits, ...newTraits] }
-        : l
-    ));
   };
 
   const updateTrait = (layerId: string, traitId: string, updates: Partial<Trait>) => {
@@ -316,7 +336,10 @@ export default function CreatePage() {
   };
 
   const handleGenerate = async () => {
-    if (layers.length === 0 || layers.every(l => l.traits.length === 0)) return;
+    if (layers.length === 0 || layers.every(l => l.traits.length === 0)) {
+      alert('Please add at least one layer with traits to generate NFTs.');
+      return;
+    }
 
     setGenerating(true);
     setGenerationProgress(0);
@@ -325,14 +348,29 @@ export default function CreatePage() {
 
     const count = Math.min(9, collectionDetails.maxSupply);
     const generated: string[] = [];
+    let successCount = 0;
+    let errorCount = 0;
 
     for (let i = 0; i < count; i++) {
-      const traitUrls = generateRandomNFT(layers);
-      if (traitUrls.length > 0) {
-        const composed = await composeNFT(traitUrls, 512);
-        if (composed) {
-          generated.push(composed);
+      try {
+        const traitUrls = generateRandomNFT(layers);
+        if (traitUrls.length > 0) {
+          const composed = await composeNFT(traitUrls, 512);
+          if (composed) {
+            generated.push(composed);
+            successCount++;
+          } else {
+            generated.push(''); // Placeholder for failed generation
+            errorCount++;
+          }
+        } else {
+          generated.push('');
+          errorCount++;
         }
+      } catch (error) {
+        console.error('Error generating NFT:', error);
+        generated.push('');
+        errorCount++;
       }
       const progress = Math.round(((i + 1) / count) * 100);
       setGenerationProgress(progress);
@@ -340,18 +378,32 @@ export default function CreatePage() {
     }
 
     setGenerating(false);
+    
+    // Show summary if there were errors
+    if (errorCount > 0) {
+      console.warn(`Generation complete: ${successCount} successful, ${errorCount} failed`);
+    }
   };
 
   const handleRegenerateOne = async (index: number) => {
-    const traitUrls = generateRandomNFT(layers);
-    if (traitUrls.length === 0) return;
-    const composed = await composeNFT(traitUrls, 512);
-    if (composed) {
-      setPreviewNFTs(prev => {
-        const next = [...prev];
-        next[index] = composed;
-        return next;
-      });
+    try {
+      const traitUrls = generateRandomNFT(layers);
+      if (traitUrls.length === 0) {
+        console.warn('No trait URLs generated');
+        return;
+      }
+      const composed = await composeNFT(traitUrls, 512);
+      if (composed) {
+        setPreviewNFTs(prev => {
+          const next = [...prev];
+          next[index] = composed;
+          return next;
+        });
+      } else {
+        console.error('Failed to compose NFT');
+      }
+    } catch (error) {
+      console.error('Error regenerating NFT:', error);
     }
   };
 
@@ -363,7 +415,34 @@ export default function CreatePage() {
   };
 
   const handleDeploy = async () => {
-    if (!address || !isCorrectNetwork) return;
+    if (!address || !isCorrectNetwork) {
+      if (!address) {
+        setDeployError('Please connect your wallet to deploy.');
+      } else if (!isCorrectNetwork) {
+        setDeployError('Please switch to Base network to deploy.');
+      }
+      setDeployStatus('error');
+      return;
+    }
+
+    // Validate collection details
+    if (!collectionDetails.name || !collectionDetails.symbol) {
+      setDeployError('Please provide a collection name and symbol.');
+      setDeployStatus('error');
+      return;
+    }
+
+    if (collectionDetails.maxSupply <= 0) {
+      setDeployError('Max supply must be greater than 0.');
+      setDeployStatus('error');
+      return;
+    }
+
+    if (parseFloat(collectionDetails.mintPrice) < 0) {
+      setDeployError('Mint price cannot be negative.');
+      setDeployStatus('error');
+      return;
+    }
 
     setDeployStatus('deploying');
     setDeployError(null);
@@ -502,6 +581,7 @@ export default function CreatePage() {
       const pollInterval = 3 * 1000; // 3 seconds
       const startTime = Date.now();
       let receipt = null;
+      let pollCount = 0;
 
       while (!receipt && Date.now() - startTime < maxWaitTime) {
         try {
@@ -519,6 +599,8 @@ export default function CreatePage() {
 
         if (!receipt) {
           await new Promise(resolve => setTimeout(resolve, pollInterval));
+          pollCount++;
+          console.log(`Polling for transaction receipt... (${pollCount})`);
         }
       }
 
@@ -621,6 +703,8 @@ export default function CreatePage() {
         errorMessage = 'Transaction rejected by user.';
       } else if (error.code === -32603) {
         errorMessage = 'RPC error. Please try again or check network connection.';
+      } else if (error.code === -32000) {
+        errorMessage = 'Insufficient funds for gas + deployment fee. Please add more ETH to your wallet.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -796,7 +880,10 @@ export default function CreatePage() {
                   <CardContent className="space-y-4 md:space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="name" className="text-sm md:text-base">Collection Name</Label>
+                        <Label htmlFor="name" className="text-sm md:text-base">
+                          Collection Name
+                          {collectionDetails.name && <span className="ml-2 text-green-500">✓</span>}
+                        </Label>
                         <Input
                           id="name"
                           placeholder="e.g., Cyber Royals"
@@ -807,11 +894,20 @@ export default function CreatePage() {
                               name: e.target.value,
                             })
                           }
-                          className="royal-input text-sm md:text-base"
+                          className={cn(
+                            "royal-input text-sm md:text-base",
+                            !collectionDetails.name && "border-royal-500/30"
+                          )}
                         />
+                        {!collectionDetails.name && (
+                          <p className="text-xs text-muted-foreground">Required for deployment</p>
+                        )}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="symbol" className="text-sm md:text-base">Symbol</Label>
+                        <Label htmlFor="symbol" className="text-sm md:text-base">
+                          Symbol
+                          {collectionDetails.symbol && <span className="ml-2 text-green-500">✓</span>}
+                        </Label>
                         <Input
                           id="symbol"
                           placeholder="e.g., CR"
@@ -823,8 +919,14 @@ export default function CreatePage() {
                               symbol: e.target.value.toUpperCase(),
                             })
                           }
-                          className="royal-input text-sm md:text-base"
+                          className={cn(
+                            "royal-input text-sm md:text-base",
+                            !collectionDetails.symbol && "border-royal-500/30"
+                          )}
                         />
+                        {!collectionDetails.symbol && (
+                          <p className="text-xs text-muted-foreground">Required for deployment (max 10 chars)</p>
+                        )}
                       </div>
                     </div>
 
@@ -959,7 +1061,10 @@ export default function CreatePage() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="maxSupply">Max Supply</Label>
+                        <Label htmlFor="maxSupply">
+                          Max Supply
+                          {collectionDetails.maxSupply > 0 && <span className="ml-2 text-green-500">✓</span>}
+                        </Label>
                         <Input
                           id="maxSupply"
                           type="number"
@@ -972,11 +1077,20 @@ export default function CreatePage() {
                               maxSupply: parseInt(e.target.value) || 10000,
                             })
                           }
-                          className="royal-input"
+                          className={cn(
+                            "royal-input",
+                            collectionDetails.maxSupply <= 0 && "border-destructive"
+                          )}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          {collectionDetails.maxSupply.toLocaleString()} NFTs maximum
+                        </p>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="mintPrice">Mint Price (ETH)</Label>
+                        <Label htmlFor="mintPrice">
+                          Mint Price (ETH)
+                          {parseFloat(collectionDetails.mintPrice) >= 0 && <span className="ml-2 text-green-500">✓</span>}
+                        </Label>
                         <Input
                           id="mintPrice"
                           type="number"
@@ -989,11 +1103,22 @@ export default function CreatePage() {
                               mintPrice: e.target.value,
                             })
                           }
-                          className="royal-input"
+                          className={cn(
+                            "royal-input",
+                            parseFloat(collectionDetails.mintPrice) < 0 && "border-destructive"
+                          )}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          Price per NFT mint
+                        </p>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="royalty">Royalty %</Label>
+                        <Label htmlFor="royalty">
+                          Royalty %
+                          {collectionDetails.royaltyPercentage >= 0 && collectionDetails.royaltyPercentage <= 50 && (
+                            <span className="ml-2 text-green-500">✓</span>
+                          )}
+                        </Label>
                         <Input
                           id="royalty"
                           type="number"
@@ -1006,8 +1131,14 @@ export default function CreatePage() {
                               royaltyPercentage: parseInt(e.target.value) || 0,
                             })
                           }
-                          className="royal-input"
+                          className={cn(
+                            "royal-input",
+                            (collectionDetails.royaltyPercentage < 0 || collectionDetails.royaltyPercentage > 50) && "border-destructive"
+                          )}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          Creator royalty (0-50%)
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -1066,7 +1197,7 @@ export default function CreatePage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6"
+                                    className="h-7 w-7 sm:h-6 sm:w-6"
                                     onClick={() => moveLayer(layer.id, 'up')}
                                     disabled={index === 0}
                                   >
@@ -1075,7 +1206,7 @@ export default function CreatePage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6"
+                                    className="h-7 w-7 sm:h-6 sm:w-6"
                                     onClick={() => moveLayer(layer.id, 'down')}
                                     disabled={index === layers.length - 1}
                                   >
@@ -1090,14 +1221,14 @@ export default function CreatePage() {
                                   className="text-lg font-semibold border-transparent bg-transparent hover:border-royal-500/30 focus:border-gold-500 w-48"
                                 />
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="border-gold-500/30">
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <Badge variant="outline" className="border-gold-500/30 text-xs sm:text-sm">
                                   {layer.traits.length} traits
                                 </Badge>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="text-destructive hover:text-destructive"
+                                  className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9"
                                   onClick={() => removeLayer(layer.id)}
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1106,10 +1237,10 @@ export default function CreatePage() {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <Label className="flex items-center justify-center w-full h-24 border-2 border-dashed border-royal-500/30 rounded-lg cursor-pointer hover:border-gold-500/50 transition-colors">
+                            <Label className="flex items-center justify-center w-full h-28 sm:h-24 border-2 border-dashed border-royal-500/30 rounded-lg cursor-pointer hover:border-gold-500/50 transition-colors">
                               <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                <Upload className="h-8 w-8" />
-                                <span className="text-sm">Drop trait images or click to browse</span>
+                                <Upload className="h-8 w-8 sm:h-8 sm:w-8" />
+                                <span className="text-xs sm:text-sm text-center px-2">Drop trait images or click to browse</span>
                               </div>
                               <input
                                 type="file"
@@ -1129,7 +1260,11 @@ export default function CreatePage() {
                               key={trait.id}
                               className="relative group aspect-square rounded-lg overflow-hidden border border-royal-500/30 hover:border-gold-500/50 transition-colors bg-gradient-to-br from-royal-500/10 to-amber-500/10"
                             >
-                              {trait.preview ? (
+                              {uploadingTraits[trait.id] ? (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Loader2 className="h-8 w-8 animate-spin text-crown" />
+                                </div>
+                              ) : trait.preview ? (
                                 <img
                                   src={trait.preview}
                                   alt={trait.name}
@@ -1457,7 +1592,19 @@ export default function CreatePage() {
                               <Loader2 className="h-10 w-10 animate-spin text-crown mx-auto" />
                               <div>
                                 <p className="font-semibold">Deploying Contract...</p>
-                                <p className="text-sm text-muted-foreground">Please confirm the transaction in your wallet</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {deployTxHash ? 'Waiting for transaction confirmation...' : 'Please confirm the transaction in your wallet'}
+                                </p>
+                                {deployTxHash && (
+                                  <a
+                                    href={getExplorerUrl(deployTxHash)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-crown hover:underline mt-2"
+                                  >
+                                    View Transaction <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
                               </div>
                             </div>
                           )}
@@ -1470,7 +1617,7 @@ export default function CreatePage() {
                                 <p className="font-semibold">Contract Deployed!</p>
                                 <p className="text-sm text-muted-foreground">Now verifying on Basescan...</p>
                               </div>
-                              {contractAddress && (
+                              {contractAddress && contractAddress !== 'See transaction details' && (
                                 <div className="flex items-center justify-center gap-2">
                                   <code className="text-sm bg-royal-500/10 px-3 py-1 rounded">
                                     {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
@@ -1494,6 +1641,11 @@ export default function CreatePage() {
                                 >
                                   View Transaction <ExternalLink className="h-3 w-3" />
                                 </a>
+                              )}
+                              {contractAddress === 'See transaction details' && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Check the transaction details to find your contract address
+                                </p>
                               )}
                             </div>
                           )}
@@ -1642,19 +1794,19 @@ export default function CreatePage() {
           </AnimatePresence>
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8">
+          <div className="flex justify-between gap-3 mt-8">
             <Button
               variant="outline"
               onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
               disabled={currentStep === 0}
-              className="royal-border"
+              className="royal-border flex-1 sm:flex-none h-10 sm:h-12"
             >
               Previous
             </Button>
             <Button
               onClick={() => setCurrentStep(Math.min(STEPS.length - 1, currentStep + 1))}
               disabled={currentStep === STEPS.length - 1}
-              className="royal-button"
+              className="royal-button flex-1 sm:flex-none h-10 sm:h-12"
             >
               Next
             </Button>
