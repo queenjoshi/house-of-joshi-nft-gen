@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
 import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
 import { CONTRACTS } from '@/lib/config';
+import { ModelViewer } from '@/components/model-viewer';
 
 interface Layer {
   id: string;
@@ -56,6 +57,7 @@ interface Trait {
   file: File | null;
   preview: string;
   rarity: number;
+  fileType: 'image' | 'glb' | 'gltf';
 }
 
 type DeployStatus = 'idle' | 'deploying' | 'deployed' | 'verifying' | 'verified' | 'error';
@@ -118,7 +120,8 @@ const FACTORY_ABI = [
   },
 ] as const;
 
-// Compose images onto a canvas
+// Compose images onto a canvas (supports PNG, JPEG, JPG, GIF)
+// Note: 3D models (GLB/GLTF) are preview-only and cannot be composed
 async function composeNFT(traitUrls: string[], size: number = 512): Promise<string> {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
@@ -145,8 +148,16 @@ async function composeNFT(traitUrls: string[], size: number = 512): Promise<stri
       return;
     }
 
-    // Filter out empty URLs
-    const validUrls = traitUrls.filter(url => url);
+    // Filter out empty URLs and 3D model URLs (data URLs starting with data:application/octet-stream or data:model)
+    const validUrls = traitUrls.filter(url => {
+      if (!url) return false;
+      // Skip 3D model data URLs
+      if (url.startsWith('data:application/octet-stream') || url.startsWith('data:model')) {
+        console.warn('Skipping 3D model in composition (preview only)');
+        return false;
+      }
+      return true;
+    });
     
     if (validUrls.length === 0) {
       resolve(canvas.toDataURL('image/png'));
@@ -272,6 +283,11 @@ export default function CreatePage() {
       const traitId = crypto.randomUUID();
       const traitName = file.name.replace(/\.[^/.]+$/, '');
       
+      // Detect file type
+      const fileType = file.name.toLowerCase().endsWith('.glb') || file.name.toLowerCase().endsWith('.gltf')
+        ? (file.name.toLowerCase().endsWith('.glb') ? 'glb' : 'gltf')
+        : 'image';
+      
       // Set uploading state for this trait
       setUploadingTraits(prev => ({ ...prev, [traitId]: true }));
       
@@ -287,6 +303,7 @@ export default function CreatePage() {
           file,
           preview: result,
           rarity: 100,
+          fileType: fileType as 'image' | 'glb' | 'gltf',
         };
         
         setLayers(current => current.map(l =>
@@ -966,7 +983,7 @@ export default function CreatePage() {
                           </div>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/*,.glb,.gltf"
                             className="hidden"
                             onChange={(e) => {
                               if (e.target.files?.[0]) {
@@ -1022,7 +1039,7 @@ export default function CreatePage() {
                           </div>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/*,.glb,.gltf"
                             className="hidden"
                             onChange={(e) => {
                               if (e.target.files?.[0]) {
@@ -1229,7 +1246,7 @@ export default function CreatePage() {
                               <input
                                 type="file"
                                 multiple
-                                accept="image/*"
+                                accept="image/*,.glb,.gltf"
                                 className="hidden"
                                 onChange={(e) =>
                                   e.target.files && addTrait(layer.id, e.target.files)
@@ -1249,11 +1266,15 @@ export default function CreatePage() {
                                   <Loader2 className="h-8 w-8 animate-spin text-crown" />
                                 </div>
                               ) : trait.preview ? (
-                                <img
-                                  src={trait.preview}
-                                  alt={trait.name}
-                                  className="w-full h-full object-contain"
-                                />
+                                trait.fileType === 'glb' || trait.fileType === 'gltf' ? (
+                                  <ModelViewer url={trait.preview} className="w-full h-full" />
+                                ) : (
+                                  <img
+                                    src={trait.preview}
+                                    alt={trait.name}
+                                    className="w-full h-full object-contain"
+                                  />
+                                )
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                   <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
