@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   description: 'Create, launch, and mint generative NFT collections on Base. The premier NFT launchpad with royalty-themed aesthetics.',
   metadataBase: new URL('https://nftlaunchpad.thehouseofjoshi.com'),
   themeColor: '#6E44FF',
+  generator: 'Next.js',
   openGraph: {
     title: 'House of Joshi Launchpad | NFT Launchpad on Base',
     description: 'Create, launch, and mint generative NFT collections on Base. The premier NFT launchpad with royalty-themed aesthetics.',
