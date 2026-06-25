@@ -5,12 +5,12 @@ import { Providers } from '@/components/providers';
 export const metadata: Metadata = {
   title: 'House of Joshi Launchpad | NFT Launchpad on Base',
   description: 'Create, launch, and mint generative NFT collections on Base. The premier NFT launchpad with royalty-themed aesthetics.',
-  metadataBase: new URL('https://thehouseofjoshi.com'),
+  metadataBase: new URL('https://nftlaunchpad.thehouseofjoshi.com'),
   themeColor: '#6E44FF',
   openGraph: {
     title: 'House of Joshi Launchpad | NFT Launchpad on Base',
     description: 'Create, launch, and mint generative NFT collections on Base. The premier NFT launchpad with royalty-themed aesthetics.',
-    url: 'https://thehouseofjoshi.com',
+    url: 'https://nftlaunchpad.thehouseofjoshi.com',
     siteName: 'House of Joshi',
     type: 'website',
     images: [
