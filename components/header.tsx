@@ -105,17 +105,32 @@ export function Header() {
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        {/* Logo - Center on Mobile, Left on Desktop */}
-        <Link href="/" className="flex items-center gap-2 group flex-shrink-0 md:mr-auto flex-1 justify-center md:justify-start">
+        {/* Mobile Navigation - Center (Horizontal Scroll) */}
+        <nav className="flex items-center gap-4 flex-1 overflow-x-auto hide-scrollbar-mobile md:hidden">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => useUIStore.getState().setMobileMenuOpen(false)}
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors font-medium text-xs whitespace-nowrap flex-shrink-0"
+            >
+              <link.icon className="h-4 w-4" />
+              <span>{link.label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        {/* Logo - Hidden on Mobile, Left on Desktop */}
+        <Link href="/" className="hidden md:flex items-center gap-2 group flex-shrink-0 md:mr-auto">
           <div className="relative flex items-center justify-center">
             <img 
               src="/joshi-logo.png" 
               alt="Joshi Logo" 
-              className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 animate-crown-shine"
+              className="h-8 w-8 md:h-10 md:w-10 animate-crown-shine"
             />
             <div className="absolute inset-0 bg-crown/20 blur-xl rounded-full" />
           </div>
-          <span className="font-display text-base sm:text-lg md:text-2xl font-bold gold-text whitespace-nowrap hidden sm:inline">
+          <span className="font-display text-lg md:text-2xl font-bold gold-text whitespace-nowrap">
             House of Joshi
           </span>
         </Link>
