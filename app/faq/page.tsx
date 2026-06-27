@@ -134,7 +134,7 @@ export default function FAQPage() {
           className="mt-16 royal-card text-center py-12"
         >
           <h2 className="text-2xl font-display font-semibold mb-4">
-            Didn't find your answer?
+            Didn&apos;t find your answer?
           </h2>
           <p className="text-muted-foreground mb-6">
             Visit our Help Center or contact our support team directly.

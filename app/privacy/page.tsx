@@ -42,7 +42,7 @@ export default function PrivacyPage() {
                 Introduction
               </h2>
               <p>
-                House of Joshi Launchpad ("we," "our," or "us") operates the House of Joshi Launchpad website. This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our service and the choices you have associated with that data.
+                House of Joshi Launchpad (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) operates the House of Joshi Launchpad website. This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our service and the choices you have associated with that data.
               </p>
             </section>
 
@@ -95,7 +95,7 @@ export default function PrivacyPage() {
                 4. Changes to This Privacy Policy
               </h2>
               <p>
-                We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date at the top of this Privacy Policy.
+                We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the &quot;Last updated&quot; date at the top of this Privacy Policy.
               </p>
             </section>
 

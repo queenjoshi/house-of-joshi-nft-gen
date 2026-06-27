@@ -875,7 +875,7 @@ export default function CreatePage() {
                       Collection Details
                     </CardTitle>
                     <CardDescription>
-                      Set up your collection's basic information
+                      Set up your collection&apos;s basic information
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 md:space-y-6">
