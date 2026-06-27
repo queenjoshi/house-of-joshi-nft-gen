@@ -165,20 +165,23 @@ export function Header() {
             <ConnectButton />
           </div>
 
-          {/* RainbowKit Connect Button - Mobile */}
-          <div className="md:hidden">
-            <ConnectButton />
-          </div>
+          {/* Mobile Actions - Wallet & Menu */}
+          <div className="flex items-center gap-2 md:hidden">
+            {/* RainbowKit Connect Button - Mobile */}
+            <div>
+              <ConnectButton />
+            </div>
 
-          {/* Mobile Menu Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden h-8 w-8"
-            onClick={toggleMobileMenu}
-          >
-            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
+            {/* Mobile Menu Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleMobileMenu}
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
       </div>
 
