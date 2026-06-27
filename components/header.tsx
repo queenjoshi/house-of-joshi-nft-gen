@@ -99,7 +99,7 @@ export function Header() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 md:hidden"
+          className="h-9 w-9 md:hidden flex-shrink-0"
           onClick={toggleMobileMenu}
         >
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -111,11 +111,11 @@ export function Header() {
             <img 
               src="/joshi-logo.png" 
               alt="Joshi Logo" 
-              className="h-8 w-8 md:h-10 md:w-10 animate-crown-shine"
+              className="h-7 w-7 sm:h-8 sm:w-8 md:h-10 md:w-10 animate-crown-shine"
             />
             <div className="absolute inset-0 bg-crown/20 blur-xl rounded-full" />
           </div>
-          <span className="font-display text-lg md:text-2xl font-bold gold-text whitespace-nowrap hidden sm:inline">
+          <span className="font-display text-base sm:text-lg md:text-2xl font-bold gold-text whitespace-nowrap hidden sm:inline">
             House of Joshi
           </span>
         </Link>
@@ -136,8 +136,8 @@ export function Header() {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-2 md:gap-3 justify-end flex-shrink-0">
-          {/* RainbowKit Connect Button - Mobile (Smaller) */}
-          <div className="md:hidden scale-90 origin-right">
+          {/* RainbowKit Connect Button - Mobile (Compact) */}
+          <div className="md:hidden scale-75 origin-right flex-shrink-0">
             <ConnectButton />
           </div>
 
