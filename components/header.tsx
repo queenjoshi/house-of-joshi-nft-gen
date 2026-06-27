@@ -93,8 +93,8 @@ export function Header() {
   };
 
   return (
-    <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl">
-      <div className="container flex h-16 items-center gap-2 px-4 md:gap-4">
+    <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl sticky top-0">
+      <div className="container flex h-14 sm:h-16 items-center gap-2 px-3 sm:px-4 md:gap-4">
         {/* Logo - Left */}
         <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
           <div className="relative flex items-center justify-center">
@@ -184,9 +184,9 @@ export function Header() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-royal-500/20"
+            className="md:hidden border-t border-royal-500/20 bg-background/95 backdrop-blur-xl"
           >
-            <nav className="container px-4 py-3 flex flex-col gap-2">
+            <nav className="container px-3 sm:px-4 py-3 flex flex-col gap-2">
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}

@@ -106,6 +106,7 @@
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html {
@@ -116,10 +117,28 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
     font-family: var(--font-body);
+    /* Safe area insets for iOS devices */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+  }
+
+  /* Improve touch targets on mobile */
+  button, a, input, select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  @media (max-width: 768px) {
+    button, a, input, select, textarea {
+      min-height: 48px;
+      min-width: 48px;
+    }
   }
 }
 
@@ -271,6 +290,33 @@
     @apply fixed bottom-0 left-0 right-0 z-50;
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
+
+  /* Prevent horizontal scroll on mobile */
+  body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Improve text rendering on mobile */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Landscape orientation optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+  body {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Improve image quality on retina displays */
+  img {
+    image-rendering: -webkit-optimize-contrast;
+  }
 }
 
 /* Animation for page transitions */
@@ -307,4 +353,22 @@
 
 .scrollbar-royal::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #c084fc, #9333ea);
+}
+
+/* Firefox scrollbar */
+.scrollbar-royal {
+  scrollbar-width: thin;
+  scrollbar-color: #a855f7 rgba(26, 10, 46, 0.3);
+}
+
+/* Mobile-specific scrollbar hiding */
+@media (max-width: 768px) {
+  .hide-scrollbar-mobile {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .hide-scrollbar-mobile::-webkit-scrollbar {
+    display: none;
+  }
 }
