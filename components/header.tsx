@@ -95,23 +95,15 @@ export function Header() {
   return (
     <header className="z-50 w-full border-b border-royal-500/20 bg-background/80 backdrop-blur-xl sticky top-0">
       <div className="container flex h-14 sm:h-16 items-center gap-2 px-3 sm:px-4 md:gap-4">
-        {/* Mobile Actions - Wallet & Menu - Left */}
-        <div className="flex items-center gap-2 md:hidden">
-          {/* Mobile Menu Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={toggleMobileMenu}
-          >
-            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
-
-          {/* RainbowKit Connect Button - Mobile */}
-          <div>
-            <ConnectButton />
-          </div>
-        </div>
+        {/* Mobile Menu Toggle - Left */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 md:hidden"
+          onClick={toggleMobileMenu}
+        >
+          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
 
         {/* Logo - Center on Mobile, Left on Desktop */}
         <Link href="/" className="flex items-center gap-2 group flex-shrink-0 md:mr-auto">
@@ -142,15 +134,20 @@ export function Header() {
           ))}
         </nav>
 
-        {/* Right Side Actions - Desktop Only */}
-        <div className="flex items-center gap-2 md:gap-3 justify-end flex-shrink-0 hidden md:flex">
+        {/* Right Side Actions */}
+        <div className="flex items-center gap-2 md:gap-3 justify-end flex-shrink-0">
+          {/* RainbowKit Connect Button - Mobile (Smaller) */}
+          <div className="md:hidden scale-90 origin-right">
+            <ConnectButton />
+          </div>
+
           {/* Theme Toggle - Desktop Only */}
           {mounted && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="relative overflow-hidden h-8 w-8 md:h-11 md:w-11"
+              className="relative overflow-hidden h-8 w-8 md:h-11 md:w-11 hidden md:flex"
             >
               <Sun className="h-4 w-4 md:h-5 md:w-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 md:h-5 md:w-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
@@ -179,7 +176,7 @@ export function Header() {
           )}
 
           {/* RainbowKit Connect Button - Desktop */}
-          <div>
+          <div className="hidden md:block">
             <ConnectButton />
           </div>
         </div>
