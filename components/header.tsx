@@ -165,6 +165,11 @@ export function Header() {
             <ConnectButton />
           </div>
 
+          {/* RainbowKit Connect Button - Mobile */}
+          <div className="md:hidden">
+            <ConnectButton />
+          </div>
+
           {/* Mobile Menu Toggle */}
           <Button
             variant="ghost"
