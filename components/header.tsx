@@ -106,7 +106,7 @@ export function Header() {
         </Button>
 
         {/* Logo - Center on Mobile, Left on Desktop */}
-        <Link href="/" className="flex items-center gap-2 group flex-shrink-0 md:mr-auto">
+        <Link href="/" className="flex items-center gap-2 group flex-shrink-0 md:mr-auto flex-1 justify-center md:justify-start">
           <div className="relative flex items-center justify-center">
             <img 
               src="/joshi-logo.png" 
@@ -136,11 +136,6 @@ export function Header() {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-2 md:gap-3 justify-end flex-shrink-0">
-          {/* RainbowKit Connect Button - Mobile (Compact) */}
-          <div className="md:hidden scale-75 origin-right flex-shrink-0">
-            <ConnectButton />
-          </div>
-
           {/* Theme Toggle - Desktop Only */}
           {mounted && (
             <Button
@@ -177,6 +172,11 @@ export function Header() {
 
           {/* RainbowKit Connect Button - Desktop */}
           <div className="hidden md:block">
+            <ConnectButton />
+          </div>
+
+          {/* RainbowKit Connect Button - Mobile (Corner) */}
+          <div className="md:hidden scale-75 origin-right flex-shrink-0">
             <ConnectButton />
           </div>
         </div>
