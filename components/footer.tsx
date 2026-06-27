@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { ExternalLink, Mail, Instagram } from 'lucide-react';
 
 // Custom X (Twitter) Icon Component
@@ -51,9 +52,11 @@ export function Footer() {
           {/* Brand Column */}
           <div className="col-span-2 sm:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-3 sm:mb-4">
-              <img 
+              <Image 
                 src="/joshi-logo.png" 
                 alt="Joshi Logo" 
+                width={24}
+                height={24}
                 className="h-5 w-5 sm:h-6 sm:w-6"
               />
               <span className="font-display text-lg sm:text-xl font-bold gold-text hidden sm:inline">

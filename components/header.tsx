@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -123,9 +124,11 @@ export function Header() {
         {/* Logo - Hidden on Mobile, Left on Desktop */}
         <Link href="/" className="hidden md:flex items-center gap-2 group flex-shrink-0 md:mr-auto">
           <div className="relative flex items-center justify-center">
-            <img 
+            <Image 
               src="/joshi-logo.png" 
               alt="Joshi Logo" 
+              width={40}
+              height={40}
               className="h-8 w-8 md:h-10 md:w-10 animate-crown-shine"
             />
             <div className="absolute inset-0 bg-crown/20 blur-xl rounded-full" />

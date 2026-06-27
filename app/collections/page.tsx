@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutGrid, List, Crown, ExternalLink, Sparkles, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -208,9 +209,11 @@ ${JSON.stringify(collections, null, 2)}
                           {/* Banner Image */}
                           {collection.bannerImage && (
                             <div className="relative w-full h-24 sm:h-28 md:h-32 bg-royal-950/50 overflow-hidden">
-                              <img
+                              <Image
                                 src={collection.bannerImage}
                                 alt={`${collection.name} banner`}
+                                width={400}
+                                height={128}
                                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                               />
                             </div>
@@ -219,9 +222,11 @@ ${JSON.stringify(collections, null, 2)}
                           {/* Cover Image - 1:1 Aspect Ratio */}
                           <div className="relative w-full aspect-square bg-royal-950/50 overflow-hidden">
                             {collection.coverImage ? (
-                              <img
+                              <Image
                                 src={collection.coverImage}
                                 alt={collection.name}
+                                width={400}
+                                height={400}
                                 className="w-full h-full object-cover hover:scale-110 transition-transform duration-300"
                               />
                             ) : (
@@ -343,9 +348,11 @@ ${JSON.stringify(collections, null, 2)}
                             {/* Banner Image */}
                             {collection.bannerImage && (
                               <div className="relative w-full h-24 md:h-32 bg-royal-950/50 overflow-hidden">
-                                <img
+                                <Image
                                   src={collection.bannerImage}
                                   alt={`${collection.name} banner`}
+                                  width={400}
+                                  height={128}
                                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                                 />
                               </div>
@@ -355,9 +362,11 @@ ${JSON.stringify(collections, null, 2)}
                               {/* Cover Image */}
                               <div className="w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden flex-shrink-0">
                                 {collection.coverImage ? (
-                                  <img
+                                  <Image
                                     src={collection.coverImage}
                                     alt={collection.name}
+                                    width={96}
+                                    height={96}
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (

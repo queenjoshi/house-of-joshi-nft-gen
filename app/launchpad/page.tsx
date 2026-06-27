@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
+import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Crown,
@@ -956,9 +957,11 @@ export default function CreatePage() {
                       </p>
                       {collectionDetails.bannerImage ? (
                         <div className="relative w-full rounded-lg overflow-hidden border border-gold-500/50">
-                          <img
+                          <NextImage
                             src={collectionDetails.bannerImage}
                             alt="Banner Preview"
+                            width={1400}
+                            height={400}
                             className="w-full h-32 sm:h-40 md:h-48 object-cover"
                           />
                           <Button
@@ -1012,9 +1015,11 @@ export default function CreatePage() {
                       </p>
                       {collectionDetails.coverImage ? (
                         <div className="relative w-full rounded-lg overflow-hidden border border-gold-500/50">
-                          <img
+                          <NextImage
                             src={collectionDetails.coverImage}
                             alt="Cover Preview"
+                            width={500}
+                            height={500}
                             className="w-full h-32 sm:h-40 md:h-48 object-cover"
                           />
                           <Button
@@ -1269,9 +1274,11 @@ export default function CreatePage() {
                                 trait.fileType === 'glb' || trait.fileType === 'gltf' ? (
                                   <ModelViewer url={trait.preview} className="w-full h-full" />
                                 ) : (
-                                  <img
+                                  <NextImage
                                     src={trait.preview}
                                     alt={trait.name}
+                                    width={400}
+                                    height={400}
                                     className="w-full h-full object-contain"
                                   />
                                 )
@@ -1445,9 +1452,11 @@ export default function CreatePage() {
                             >
                               <div className="aspect-square rounded-xl overflow-hidden border border-royal-500/30 bg-royal-950/50">
                                 {nft ? (
-                                  <img
+                                  <NextImage
                                     src={nft}
                                     alt={`Preview ${i + 1}`}
+                                    width={400}
+                                    height={400}
                                     className="w-full h-full object-contain"
                                   />
                                 ) : (
