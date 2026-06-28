@@ -63,7 +63,7 @@ export function Footer() {
                 House of Joshi
               </span>
             </Link>
-            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-3">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
               Create, launch, and mint generative NFT collections on Base.
               The premier NFT launchpad with royalty-themed aesthetics.
             </p>
