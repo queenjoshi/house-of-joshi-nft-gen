@@ -47,10 +47,10 @@ const FOOTER_LINKS = {
 export function Footer() {
   return (
     <footer className="border-t border-royal-500/20 bg-background/80 backdrop-blur-xl">
-      <div className="container px-4 py-8 sm:py-12">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 sm:gap-8">
+      <div className="container mx-auto px-4 py-8 sm:py-12 max-w-7xl">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8">
           {/* Brand Column */}
-          <div className="col-span-2 sm:col-span-1">
+          <div className="col-span-2 sm:col-span-1 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-3 sm:mb-4">
               <Image 
                 src="/joshi-logo.png" 
