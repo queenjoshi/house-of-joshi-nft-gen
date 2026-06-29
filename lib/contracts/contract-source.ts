@@ -592,6 +592,27 @@ contract NFTFactory is Ownable, ReentrancyGuard {
 
 export const COMPILER_VERSION = "v0.8.20+commit.a1b79de6";
 export const CONTRACT_NAME = "NFTFactory";
+export const ROYAL_NFT_CONTRACT_NAME = "RoyalNFT";
+
+// Extract just the RoyalNFT contract from the full source code for verification
+export function getRoyalNFTSourceCode(): string {
+  // The ROYAL_NFT_SOURCE_CODE contains both NFTFactory and RoyalNFT
+  // We need to extract just the RoyalNFT contract for verification
+  const factoryStart = ROYAL_NFT_SOURCE_CODE.indexOf('contract NFTFactory');
+  const royalNFTStart = ROYAL_NFT_SOURCE_CODE.indexOf('contract RoyalNFT');
+  
+  if (royalNFTStart === -1 || factoryStart === -1) {
+    return ROYAL_NFT_SOURCE_CODE;
+  }
+  
+  // Extract from RoyalNFT to end (before factory)
+  const royalNFTCode = ROYAL_NFT_SOURCE_CODE.substring(royalNFTStart, factoryStart);
+  
+  // Add necessary imports/dependencies that RoyalNFT needs
+  const dependencies = ROYAL_NFT_SOURCE_CODE.substring(0, royalNFTStart);
+  
+  return dependencies + royalNFTCode;
+}
 
 // Factory ABI for createCollection function
 export const FACTORY_ABI = [

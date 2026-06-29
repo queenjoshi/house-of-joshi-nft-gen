@@ -40,7 +40,7 @@ import { Footer } from '@/components/footer';
 import { isBaseNetwork, BASE_MAINNET, useCollectionsStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
-import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
+import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME, ROYAL_NFT_CONTRACT_NAME, getRoyalNFTSourceCode } from '@/lib/contracts/contract-source';
 import { CONTRACTS } from '@/lib/config';
 import { ModelViewer } from '@/components/model-viewer';
 
@@ -707,7 +707,14 @@ export default function CreatePage() {
 
       // Attempt automatic verification if we found a contract address
       if (deployedCollectionAddress && deployedCollectionAddress !== 'See transaction details') {
-        await verifyContract(deployedCollectionAddress, (chainId || BASE_MAINNET.id) as number, hash);
+        await verifyContract(
+          deployedCollectionAddress, 
+          (chainId || BASE_MAINNET.id) as number, 
+          hash,
+          collectionDetails.name,
+          collectionDetails.symbol,
+          collectionParams
+        );
       }
 
     } catch (error: any) {
@@ -729,7 +736,14 @@ export default function CreatePage() {
     }
   };
 
-  const verifyContract = async (contractAddr: string, networkChainId: number, txHash?: string) => {
+  const verifyContract = async (
+    contractAddr: string, 
+    networkChainId: number, 
+    txHash?: string,
+    collectionName?: string,
+    collectionSymbol?: string,
+    collectionParams?: any
+  ) => {
     setDeployStatus('verifying');
     const explorerBase = networkChainId === 84532
       ? 'https://sepolia.basescan.org'
@@ -737,6 +751,68 @@ export default function CreatePage() {
     const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
 
     try {
+      // Get RoyalNFT source code with dependencies (without factory)
+      const sourceCode = getRoyalNFTSourceCode();
+
+      // Encode constructor arguments for BaseScan verification
+      // The RoyalNFT constructor takes CollectionParams struct
+      let constructorArguments = '';
+      if (collectionParams) {
+        const { encodeFunctionData } = await import('viem');
+        
+        // Define the RoyalNFT constructor ABI
+        const constructorAbi = {
+          type: 'constructor',
+          inputs: [
+            {
+              type: 'tuple',
+              name: 'p',
+              components: [
+                { name: 'name', type: 'string' },
+                { name: 'symbol', type: 'string' },
+                { name: 'contractURI', type: 'string' },
+                { name: 'baseURI', type: 'string' },
+                { name: 'unrevealedURI', type: 'string' },
+                { name: 'maxSupply', type: 'uint256' },
+                { name: 'mintPrice', type: 'uint256' },
+                { name: 'maxMintPerWallet', type: 'uint256' },
+                { name: 'mintStart', type: 'uint64' },
+                { name: 'mintEnd', type: 'uint64' },
+                { name: 'revealTime', type: 'uint64' },
+                { name: 'royaltyReceiver', type: 'address' },
+                { name: 'royaltyBps', type: 'uint96' },
+                { name: 'allowlistRoot', type: 'bytes32' },
+              ],
+            },
+          ],
+        } as const;
+
+        const encoded = encodeFunctionData({
+          abi: [constructorAbi],
+          functionName: 'constructor',
+          args: [
+            {
+              name: collectionParams.name,
+              symbol: collectionParams.symbol,
+              contractURI: collectionParams.contractURI,
+              baseURI: collectionParams.baseURI,
+              unrevealedURI: collectionParams.unrevealedURI,
+              maxSupply: collectionParams.maxSupply,
+              mintPrice: collectionParams.mintPrice,
+              maxMintPerWallet: collectionParams.maxMintPerWallet,
+              mintStart: collectionParams.mintStart,
+              mintEnd: collectionParams.mintEnd,
+              revealTime: collectionParams.revealTime,
+              royaltyReceiver: collectionParams.royaltyReceiver,
+              royaltyBps: collectionParams.royaltyBps,
+              allowlistRoot: collectionParams.allowlistRoot,
+            },
+          ],
+        });
+
+        constructorArguments = encoded.slice(2); // Remove 0x prefix for BaseScan
+      }
+
       // Submit verification request to BaseScan
       const verifyResponse = await fetch(`${explorerBase}/api`, {
         method: 'POST',
@@ -748,13 +824,13 @@ export default function CreatePage() {
           action: 'verifysourcecode',
           apikey: apiKey,
           contractaddress: contractAddr,
-          sourceCode: ROYAL_NFT_SOURCE_CODE,
+          sourceCode: sourceCode,
           codeformat: 'solidity-single-file',
-          contractname: CONTRACT_NAME,
+          contractname: ROYAL_NFT_CONTRACT_NAME,
           compilerversion: COMPILER_VERSION,
           optimizationUsed: '0',
           runs: '200',
-          constructorArguements: '',
+          constructorArguements: constructorArguments,
           licenseType: '3',
         }),
       });
