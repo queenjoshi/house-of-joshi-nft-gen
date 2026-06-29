@@ -118,7 +118,7 @@ ${JSON.stringify(collections, null, 2)}
             </motion.div>
 
             {/* Controls Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3 md:p-4 rounded-lg bg-royal-500/10 border border-royal-500/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 md:gap-4 p-3 sm:p-3 md:p-4 rounded-lg bg-royal-500/10 border border-royal-500/20">
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm text-muted-foreground font-medium">Layout:</span>
                 <div className="flex gap-1 sm:gap-2">
@@ -127,11 +127,11 @@ ${JSON.stringify(collections, null, 2)}
                     variant={layout === 'grid' ? 'default' : 'outline'}
                     onClick={() => setLayout('grid')}
                     className={cn(
-                      "h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm",
+                      "h-8 sm:h-8 px-2 sm:px-2 md:px-3 text-xs sm:text-xs md:text-sm",
                       layout === 'grid' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'
                     )}
                   >
-                    <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1 md:mr-2" />
+                    <LayoutGrid className="h-4 w-4 sm:h-4 sm:w-4 mr-1 sm:mr-1 md:mr-2" />
                     <span className="hidden sm:inline">Grid</span>
                   </Button>
                   <Button
@@ -139,35 +139,35 @@ ${JSON.stringify(collections, null, 2)}
                     variant={layout === 'list' ? 'default' : 'outline'}
                     onClick={() => setLayout('list')}
                     className={cn(
-                      "h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm",
+                      "h-8 sm:h-8 px-2 sm:px-2 md:px-3 text-xs sm:text-xs md:text-sm",
                       layout === 'list' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'
                     )}
                   >
-                    <List className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1 md:mr-2" />
+                    <List className="h-4 w-4 sm:h-4 sm:w-4 mr-1 sm:mr-1 md:mr-2" />
                     <span className="hidden sm:inline">List</span>
                   </Button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap">
-                <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground whitespace-nowrap">
+              <div className="flex items-center gap-2 sm:gap-2 md:gap-3 flex-wrap">
+                <div className="text-xs sm:text-xs md:text-sm text-muted-foreground whitespace-nowrap">
                   {collections.length} collection{collections.length !== 1 ? 's' : ''}
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="royal-border h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm"
+                  className="royal-border h-8 sm:h-8 px-2 sm:px-2 md:px-3 text-xs sm:text-xs md:text-sm"
                   onClick={handleRefresh}
                   title="Refresh collections"
                 >
-                  <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <RotateCcw className="h-4 w-4 sm:h-4 sm:w-4" />
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={handleDebug}
                   title="Show debug info"
-                  className="h-7 sm:h-8 px-1.5 sm:px-2 md:px-3 text-[10px] sm:text-xs md:text-sm"
+                  className="h-8 sm:h-8 px-2 sm:px-2 md:px-3 text-xs sm:text-xs md:text-sm"
                 >
                   Debug
                 </Button>
@@ -181,7 +181,7 @@ ${JSON.stringify(collections, null, 2)}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-8 md:mb-12"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-8 md:mb-12"
             >
               <AnimatePresence>
                 {collections.length === 0 ? (
@@ -285,7 +285,7 @@ ${JSON.stringify(collections, null, 2)}
 
                             {/* Actions */}
                             <div className="flex gap-2 pt-2">
-                              <Button size="sm" className="flex-1 bg-amber-500 hover:bg-amber-600 text-white">
+                              <Button size="sm" className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm">
                                 <Sparkles className="h-4 w-4 mr-1" />
                                 Mint
                               </Button>

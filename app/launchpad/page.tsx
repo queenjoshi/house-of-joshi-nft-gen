@@ -1154,7 +1154,7 @@ export default function CreatePage() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="maxSupply">
                           Max Supply
@@ -1243,7 +1243,7 @@ export default function CreatePage() {
               {/* Step 2: Layer Setup */}
               {currentStep === 1 && (
                 <div className="space-y-4 md:space-y-6">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 md:gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 md:gap-4">
                     <Card className="royal-card text-center">
                       <CardContent className="pt-3 md:pt-4 pb-3 md:pb-4 px-2 md:px-6">
                         <div className="text-lg md:text-2xl font-bold gold-text">{layers.length}</div>
