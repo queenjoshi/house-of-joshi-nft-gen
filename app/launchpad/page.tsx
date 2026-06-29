@@ -581,27 +581,36 @@ export default function CreatePage() {
 
       setDeployTxHash(hash);
       
-      // Wait for transaction confirmation
+      // Wait for transaction confirmation using public client
+      const { createPublicClient, http } = await import('viem');
+      
       const maxWaitTime = 5 * 60 * 1000; // 5 minutes
       const pollInterval = 3 * 1000; // 3 seconds
       const startTime = Date.now();
       let receipt = null;
       let pollCount = 0;
 
+      const publicRpcUrl = chainId === 84532 
+        ? 'https://sepolia.base.org' 
+        : 'https://mainnet.base.org';
+      
+      const client = createPublicClient({
+        transport: http(publicRpcUrl)
+      });
+
       while (!receipt && Date.now() - startTime < maxWaitTime) {
         try {
-          if (typeof window !== 'undefined' && (window as any).ethereum) {
-            const result = await (window.ethereum as any).request({
-              method: 'eth_getTransactionReceipt',
-              params: [hash],
-            });
-
-            if (result) {
-              receipt = result;
-            }
+          receipt = await client.waitForTransactionReceipt({ 
+            hash: hash as `0x${string}`,
+            timeout: pollInterval 
+          });
+          
+          if (receipt) {
+            break;
           }
         } catch (e) {
-          // Ignore polling errors
+          // Transaction not yet confirmed, continue polling
+          console.log('Transaction not yet confirmed, polling...');
         }
 
         if (!receipt) {
@@ -615,7 +624,7 @@ export default function CreatePage() {
         throw new Error('Transaction confirmation timeout. Please check the status on Basescan.');
       }
 
-      if (receipt.status === '0x0') {
+      if (receipt.status === 'reverted') {
         throw new Error('Transaction failed. Please check the transaction details on Basescan.');
       }
 
@@ -628,19 +637,15 @@ export default function CreatePage() {
         status: receipt.status,
       });
       
-      // Method 1: Check if factory created a contract directly
-      if (receipt.contractAddress && receipt.contractAddress !== '0x0000000000000000000000000000000000000000') {
-        deployedCollectionAddress = receipt.contractAddress;
-        console.log('Using receipt.contractAddress:', deployedCollectionAddress);
-      }
-      
-      // Method 2: Try to extract from factory events
-      if (!deployedCollectionAddress && receipt.logs && receipt.logs.length > 0) {
+      // Extract collection address from CollectionCreated event
+      // Event: CollectionCreated(address indexed creator, address indexed collection, string name, string symbol)
+      // topics[0] = event signature, topics[1] = creator, topics[2] = collection address
+      if (receipt.logs && receipt.logs.length > 0) {
         for (const log of receipt.logs) {
           // Check if this is an event from the factory contract
           if (log.address?.toLowerCase() === CONTRACTS.FACTORY.toLowerCase()) {
             console.log('Found factory event with topics:', log.topics?.length);
-            if (log.topics && log.topics.length >= 3) {
+            if (log.topics && log.topics.length >= 3 && log.topics[2]) {
               const collectionAddr = '0x' + log.topics[2].slice(-40);
               console.log('Extracted collection address from event:', collectionAddr);
               deployedCollectionAddress = collectionAddr;
@@ -682,8 +687,16 @@ export default function CreatePage() {
           deployedAt: Date.now(),
           txHash: hash,
         };
-        addDeployedCollection(collectionToSave);
-        console.log('Collection saved to store!');
+        try {
+          addDeployedCollection(collectionToSave);
+          console.log('✅ Collection saved to store successfully!');
+          
+          // Verify it was saved
+          const allCollections = useCollectionsStore.getState().getAllCollections();
+          console.log('Current collections in store:', allCollections);
+        } catch (error) {
+          console.error('❌ Failed to save collection to store:', error);
+        }
       } else {
         console.warn('⚠️ Collection NOT saved - missing data:', {
           hasAddress: !!deployedCollectionAddress,

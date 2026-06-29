@@ -47,6 +47,9 @@ export default function CollectionsPage() {
   useEffect(() => {
     if (!isHydrated) return;
 
+    console.log('Collections page - deployedCollections:', deployedCollections);
+    console.log('Collections page - isHydrated:', isHydrated);
+
     // Convert deployed collections to display format
     const displayCollections: CollectionCard[] = deployedCollections.map((col) => ({
       id: col.id,
@@ -62,6 +65,7 @@ export default function CollectionsPage() {
       isVerified: false,
     }));
     
+    console.log('Collections page - displayCollections:', displayCollections);
     setCollections(displayCollections);
     setIsLoading(false);
   }, [deployedCollections, isHydrated]);

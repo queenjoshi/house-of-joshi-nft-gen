@@ -43,11 +43,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!address || !isConnected) return;
 
+    console.log('Dashboard - deployedCollections:', deployedCollections);
+    console.log('Dashboard - address:', address);
+
     // Filter collections created by the current user
     const myCollections = deployedCollections.filter(
       (col) => col.creatorAddress.toLowerCase() === address.toLowerCase()
     );
 
+    console.log('Dashboard - myCollections:', myCollections);
     setUserCollections(myCollections);
 
     // Calculate stats
