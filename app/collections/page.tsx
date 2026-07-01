@@ -37,7 +37,7 @@ export default function CollectionsPage() {
   const [showDebug, setShowDebug] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string>('');
   
-  const deployedCollections = useCollectionsStore((state) => state.getAllCollections());
+  const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
 
   // Ensure hydration is complete before rendering
   useEffect(() => {

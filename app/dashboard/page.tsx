@@ -31,7 +31,7 @@ interface CollectionStats {
 
 export default function DashboardPage() {
   const { isConnected, address } = useWalletStore();
-  const deployedCollections = useCollectionsStore((state) => state.getAllCollections());
+  const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
   const [userCollections, setUserCollections] = useState<typeof deployedCollections>([]);
   const [stats, setStats] = useState<CollectionStats>({
     totalCollections: 0,
