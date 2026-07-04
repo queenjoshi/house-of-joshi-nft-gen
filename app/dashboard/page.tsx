@@ -12,16 +12,45 @@ import {
   Activity,
   ExternalLink,
   Sparkles,
+  Pencil,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { useWalletStore, useCollectionsStore } from '@/lib/store';
-import { getCollections, getUser } from '@/lib/supabase';
+import { getCollections, getUser, updateCollectionByAddress } from '@/lib/supabase';
 import Link from 'next/link';
+
+interface DashboardCollection {
+  id: string;
+  contractAddress: string;
+  name: string;
+  symbol: string;
+  coverImage: string | null;
+  bannerImage: string | null;
+  maxSupply: number;
+  mintPrice: string;
+  isVerified: boolean;
+  description: string | null;
+  externalUrl: string | null;
+  twitterUrl: string | null;
+  discordUrl: string | null;
+}
 
 interface CollectionStats {
   totalCollections: number;
@@ -33,7 +62,8 @@ interface CollectionStats {
 export default function DashboardPage() {
   const { isConnected, address } = useWalletStore();
   const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
-  const [userCollections, setUserCollections] = useState<typeof deployedCollections>([]);
+  const [userCollections, setUserCollections] = useState<DashboardCollection[]>([]);
+  const [isLoadingCollections, setIsLoadingCollections] = useState(true);
   const [stats, setStats] = useState<CollectionStats>({
     totalCollections: 0,
     totalNFTsMinted: 0,
@@ -41,81 +71,138 @@ export default function DashboardPage() {
     totalRoyalties: 0,
   });
 
+  // Edit modal state
+  const [editingCollection, setEditingCollection] = useState<DashboardCollection | null>(null);
+  const [editForm, setEditForm] = useState({
+    description: '',
+    externalUrl: '',
+    twitterUrl: '',
+    discordUrl: '',
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   useEffect(() => {
     if (!address || !isConnected) return;
 
-    console.log('Dashboard - fetching from Supabase for address:', address);
+    let cancelled = false;
 
-    // Fetch collections from Supabase
-    const fetchUserCollections = async () => {
+    async function loadUserCollections() {
+      setIsLoadingCollections(true);
+
+      let dbCollections: any[] = [];
       try {
-        // Get user from Supabase
-        const user = await getUser(address);
-        if (!user) {
-          console.log('User not found in Supabase, falling back to localStorage');
-          // Fallback to localStorage
-          const myCollections = deployedCollections.filter(
-            (col) => col.creatorAddress.toLowerCase() === address.toLowerCase()
-          );
-          setUserCollections(myCollections);
-          setStats({
-            totalCollections: myCollections.length,
-            totalNFTsMinted: 0,
-            totalVolume: 0,
-            totalRoyalties: 0,
-          });
-          return;
+        const user = await getUser(address as string);
+        if (user) {
+          dbCollections = (await getCollections({ creatorId: user.id })) || [];
         }
+      } catch (e) {
+        console.error('Failed to load dashboard collections from Supabase:', e);
+      }
 
-        // Fetch collections for this user
-        const allCollections = await getCollections();
-        const myCollections = allCollections.filter(
-          (col: any) => col.creator_id === user.id
-        );
+      const fromDb: DashboardCollection[] = dbCollections.map((col) => ({
+        id: col.id,
+        contractAddress: col.contract_address,
+        name: col.name,
+        symbol: col.symbol,
+        coverImage: col.cover_image_url,
+        bannerImage: col.banner_url,
+        maxSupply: col.max_supply,
+        mintPrice: String(col.mint_price_eth ?? '0'),
+        isVerified: !!col.is_verified,
+        description: col.description,
+        externalUrl: col.external_url,
+        twitterUrl: col.twitter_url,
+        discordUrl: col.discord_url,
+      }));
 
-        console.log('Dashboard - myCollections from Supabase:', myCollections);
-
-        // Convert to display format
-        const displayCollections = myCollections.map((col: any) => ({
+      // Fallback: same-browser collections that haven't synced to Supabase yet
+      const dbAddresses = new Set(fromDb.map((c) => c.contractAddress?.toLowerCase()));
+      const localOnly: DashboardCollection[] = deployedCollections
+        .filter(
+          (col) =>
+            col.creatorAddress.toLowerCase() === (address as string).toLowerCase() &&
+            !dbAddresses.has(col.contractAddress?.toLowerCase())
+        )
+        .map((col) => ({
           id: col.id,
-          contractAddress: col.contract_address || '',
+          contractAddress: col.contractAddress,
           name: col.name,
           symbol: col.symbol,
-          coverImage: col.logo_url || col.cover_image_url,
-          bannerImage: col.banner_url,
+          coverImage: col.coverImage,
+          bannerImage: col.bannerImage,
           maxSupply: col.max_supply,
-          mintPrice: col.mint_price_eth?.toString() || '0',
-          creatorAddress: address,
-          deployedAt: col.deployed_at ? new Date(col.deployed_at).getTime() : Date.now(),
-          txHash: col.deployment_tx_hash || '',
+          mintPrice: col.mintPrice,
+          isVerified: false,
+          description: null,
+          externalUrl: null,
+          twitterUrl: null,
+          discordUrl: null,
         }));
 
-        setUserCollections(displayCollections);
+      if (!cancelled) {
+        const combined = [...fromDb, ...localOnly];
+        setUserCollections(combined);
         setStats({
-          totalCollections: displayCollections.length,
+          totalCollections: combined.length,
           totalNFTsMinted: 0,
           totalVolume: 0,
           totalRoyalties: 0,
         });
-      } catch (error) {
-        console.error('Failed to fetch collections from Supabase:', error);
-        // Fallback to localStorage
-        console.log('Falling back to localStorage collections...');
-        const myCollections = deployedCollections.filter(
-          (col) => col.creatorAddress.toLowerCase() === address.toLowerCase()
-        );
-        setUserCollections(myCollections);
-        setStats({
-          totalCollections: myCollections.length,
-          totalNFTsMinted: 0,
-          totalVolume: 0,
-          totalRoyalties: 0,
-        });
+        setIsLoadingCollections(false);
       }
-    };
+    }
 
-    fetchUserCollections();
-  }, [address, isConnected]);
+    loadUserCollections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, isConnected, deployedCollections]);
+
+  const openEditModal = (collection: DashboardCollection) => {
+    setEditingCollection(collection);
+    setEditForm({
+      description: collection.description || '',
+      externalUrl: collection.externalUrl || '',
+      twitterUrl: collection.twitterUrl || '',
+      discordUrl: collection.discordUrl || '',
+    });
+    setSaveSuccess(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCollection) return;
+    setIsSaving(true);
+    try {
+      await updateCollectionByAddress(editingCollection.contractAddress, {
+        description: editForm.description,
+        external_url: editForm.externalUrl,
+        twitter_url: editForm.twitterUrl,
+        discord_url: editForm.discordUrl,
+      });
+
+      setUserCollections((prev) =>
+        prev.map((c) =>
+          c.contractAddress === editingCollection.contractAddress
+            ? {
+                ...c,
+                description: editForm.description,
+                externalUrl: editForm.externalUrl,
+                twitterUrl: editForm.twitterUrl,
+                discordUrl: editForm.discordUrl,
+              }
+            : c
+        )
+      );
+      setSaveSuccess(true);
+      setTimeout(() => setEditingCollection(null), 900);
+    } catch (e) {
+      console.error('Failed to save collection edits:', e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -197,7 +284,14 @@ export default function DashboardPage() {
                     </TabsList>
 
                     <TabsContent value="collections">
-                      {userCollections.length === 0 ? (
+                      {isLoadingCollections ? (
+                        <Card className="royal-card text-center py-8 md:py-12">
+                          <CardContent>
+                            <Loader2 className="h-8 w-8 mx-auto mb-4 text-muted-foreground animate-spin" />
+                            <p className="text-muted-foreground text-sm">Loading your collections...</p>
+                          </CardContent>
+                        </Card>
+                      ) : userCollections.length === 0 ? (
                         <Card className="royal-card text-center py-8 md:py-12">
                           <CardContent>
                             <Image className="h-10 md:h-12 w-10 md:w-12 mx-auto mb-4 text-muted-foreground" />
@@ -238,6 +332,15 @@ export default function DashboardPage() {
                                       <Badge variant="outline" className="text-xs flex-shrink-0">
                                         {collection.symbol}
                                       </Badge>
+                                      {collection.isVerified ? (
+                                        <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs flex-shrink-0">
+                                          ✓ Verified
+                                        </Badge>
+                                      ) : (
+                                        <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs flex-shrink-0">
+                                          Verifying…
+                                        </Badge>
+                                      )}
                                     </div>
                                     <p className="text-xs md:text-sm text-muted-foreground mb-2">
                                       Deployed on Base Chain
@@ -260,6 +363,15 @@ export default function DashboardPage() {
 
                                   {/* Actions */}
                                   <div className="flex gap-2 w-full sm:w-auto">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="royal-border h-8 md:h-9 text-xs md:text-sm"
+                                      onClick={() => openEditModal(collection)}
+                                    >
+                                      <Pencil className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                                      Edit
+                                    </Button>
                                     <Button
                                       size="sm"
                                       className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-white h-8 md:h-9 text-xs md:text-sm"
@@ -346,6 +458,82 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Edit Collection Modal */}
+      <Dialog open={!!editingCollection} onOpenChange={(open) => !open && setEditingCollection(null)}>
+        <DialogContent className="royal-card">
+          <DialogHeader>
+            <DialogTitle>Edit {editingCollection?.name}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground">
+              On-chain fields (name, symbol, max supply) can't change after deployment.
+              Mint price, base URI, and mint window can be updated via your contract's
+              owner functions on the Manage page. This edits the collection's public listing info.
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editForm.description}
+                onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                rows={4}
+                placeholder="Tell collectors about this collection..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-external-url">Website</Label>
+              <Input
+                id="edit-external-url"
+                value={editForm.externalUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, externalUrl: e.target.value }))}
+                placeholder="https://yourproject.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-twitter-url">Twitter / X</Label>
+              <Input
+                id="edit-twitter-url"
+                value={editForm.twitterUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, twitterUrl: e.target.value }))}
+                placeholder="https://x.com/yourhandle"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-discord-url">Discord</Label>
+              <Input
+                id="edit-discord-url"
+                value={editForm.discordUrl}
+                onChange={(e) => setEditForm((f) => ({ ...f, discordUrl: e.target.value }))}
+                placeholder="https://discord.gg/yourinvite"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCollection(null)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={handleSaveEdit}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : saveSuccess ? (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              ) : null}
+              {saveSuccess ? 'Saved' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>

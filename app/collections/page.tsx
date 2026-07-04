@@ -39,6 +39,7 @@ export default function CollectionsPage() {
   const [debugInfo, setDebugInfo] = useState<string>('');
   
   const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Ensure hydration is complete before rendering
   useEffect(() => {
@@ -48,37 +49,41 @@ export default function CollectionsPage() {
   useEffect(() => {
     if (!isHydrated) return;
 
-    console.log('Collections page - fetching from Supabase...');
+    let cancelled = false;
 
-    // Fetch collections from Supabase
-    const fetchCollections = async () => {
+    async function loadCollections() {
+      setIsLoading(true);
+      setLoadError(null);
+
+      // Supabase is the source of truth — every visitor sees these, on any device.
+      let dbCollections: any[] = [];
       try {
-        const supabaseCollections = await getCollections({ status: 'live' });
-        console.log('Collections from Supabase:', supabaseCollections);
+        dbCollections = (await getCollections()) || [];
+      } catch (e) {
+        console.error('Failed to load collections from Supabase:', e);
+        setLoadError('Could not reach the collections database — showing locally cached collections only.');
+      }
 
-        // Convert Supabase collections to display format
-        const displayCollections: CollectionCard[] = supabaseCollections.map((col: any) => ({
-          id: col.id,
-          contractAddress: col.contract_address || '',
-          name: col.name,
-          symbol: col.symbol,
-          coverImage: col.logo_url || col.cover_image_url,
-          bannerImage: col.banner_url,
-          maxSupply: col.max_supply,
-          minted: 0, // Will be calculated from contract
-          mintPrice: col.mint_price_eth?.toString() || '0',
-          creator: col.users?.wallet_address || '',
-          isVerified: col.is_verified || false,
-        }));
+      const displayFromDb: CollectionCard[] = dbCollections.map((col) => ({
+        id: col.id,
+        contractAddress: col.contract_address,
+        name: col.name,
+        symbol: col.symbol,
+        coverImage: col.cover_image_url,
+        bannerImage: col.banner_url,
+        maxSupply: col.max_supply,
+        minted: 0, // live mint count comes from the contract itself, wired up separately
+        mintPrice: String(col.mint_price_eth ?? '0'),
+        creator: col.users?.wallet_address ?? '',
+        isVerified: !!col.is_verified,
+      }));
 
-        console.log('Collections page - displayCollections:', displayCollections);
-        setCollections(displayCollections);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Failed to fetch collections from Supabase:', error);
-        // Fallback to localStorage if Supabase fails
-        console.log('Falling back to localStorage collections...');
-        const displayCollections: CollectionCard[] = deployedCollections.map((col) => ({
+      // Fallback: include anything sitting only in this browser's local store
+      // (e.g. Supabase write failed right after deploy) that isn't in the DB list yet.
+      const dbAddresses = new Set(displayFromDb.map((c) => c.contractAddress?.toLowerCase()));
+      const localOnly: CollectionCard[] = deployedCollections
+        .filter((col) => !dbAddresses.has(col.contractAddress?.toLowerCase()))
+        .map((col) => ({
           id: col.id,
           contractAddress: col.contractAddress,
           name: col.name,
@@ -91,13 +96,19 @@ export default function CollectionsPage() {
           creator: col.creatorAddress,
           isVerified: false,
         }));
-        setCollections(displayCollections);
+
+      if (!cancelled) {
+        setCollections([...displayFromDb, ...localOnly]);
         setIsLoading(false);
       }
-    };
+    }
 
-    fetchCollections();
-  }, [isHydrated]);
+    loadCollections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHydrated, deployedCollections]);
 
   const handleDebug = () => {
     const stored = localStorage.getItem('collections-storage');
@@ -163,6 +174,9 @@ ${JSON.stringify(collections, null, 2)}
               <p className="text-muted-foreground text-xs sm:text-sm md:text-base lg:text-lg max-w-2xl">
                 Discover and mint from all collections created through the House of Joshi Launchpad.
               </p>
+              {loadError && (
+                <p className="text-amber-400 text-xs sm:text-sm mt-2">{loadError}</p>
+              )}
             </motion.div>
 
             {/* Controls Bar */}

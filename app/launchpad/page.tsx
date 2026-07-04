@@ -43,7 +43,7 @@ import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
 import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME, ROYAL_NFT_CONTRACT_NAME, getRoyalNFTSourceCode } from '@/lib/contracts/contract-source';
 import { CONTRACTS } from '@/lib/config';
 import { ModelViewer } from '@/components/model-viewer';
-import { getUser, createUser, createCollection as createSupabaseCollection } from '@/lib/supabase';
+import { upsertUser, createCollection as createSupabaseCollection } from '@/lib/supabase';
 
 interface Layer {
   id: string;
@@ -704,18 +704,10 @@ export default function CreatePage() {
 
         // Save to Supabase
         try {
-          // Get or create user
-          let user = await getUser(address);
-          if (!user) {
-            user = await getUser(address);
-            if (!user) {
-              user = await createUser(address);
-            }
-          }
-
-          // Create collection in Supabase
+          const user = await upsertUser(address);
           await createSupabaseCollection({
             creator_id: user.id,
+            contract_address: deployedCollectionAddress,
             name: collectionDetails.name,
             symbol: collectionDetails.symbol,
             description: collectionDetails.description,
@@ -725,12 +717,16 @@ export default function CreatePage() {
             royalty_percentage: collectionDetails.royaltyPercentage,
             royalty_recipient: address,
             banner_url: collectionDetails.bannerImage || undefined,
-            logo_url: collectionDetails.coverImage || undefined,
-            external_url: 'https://thehouseofjoshi.com',
+            cover_image_url: collectionDetails.coverImage || undefined,
+            deployment_tx_hash: hash,
+            is_public: true,
+            is_verified: false,
+            status: 'deploying',
+            deployed_at: new Date().toISOString(),
           });
-          console.log('✅ Collection saved to Supabase successfully!');
+          console.log('✅ Collection saved to Supabase — will now show in Collections page and Dashboard.');
         } catch (error) {
-          console.error('❌ Failed to save collection to Supabase:', error);
+          console.error('❌ Failed to save collection to Supabase (it will only show in this browser):', error);
         }
       } else {
         console.warn('⚠️ Collection NOT saved - missing data:', {

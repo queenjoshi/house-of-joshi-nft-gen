@@ -42,6 +42,28 @@ export async function createUser(walletAddress: string, userData?: Partial<{
   return data;
 }
 
+export async function upsertUser(walletAddress: string, userData?: Partial<{
+  username: string;
+  bio: string;
+  avatar_url: string;
+  banner_url: string;
+  twitter_handle: string;
+  farcaster_handle: string;
+  website_url: string;
+}>) {
+  const { data, error } = await supabase
+    .from('users')
+    .upsert({
+      wallet_address: walletAddress,
+      ...userData,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function updateUser(walletAddress: string, updates: Partial<{
   username: string;
   bio: string;
@@ -148,6 +170,25 @@ export async function createCollection(collection: {
   const { data, error } = await supabase
     .from('collections')
     .insert(collection)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateCollectionByAddress(contractAddress: string, updates: {
+  description?: string;
+  external_url?: string;
+  twitter_url?: string;
+  discord_url?: string;
+  is_verified?: boolean;
+  status?: string;
+}) {
+  const { data, error } = await supabase
+    .from('collections')
+    .update(updates)
+    .eq('contract_address', contractAddress)
     .select()
     .single();
 
