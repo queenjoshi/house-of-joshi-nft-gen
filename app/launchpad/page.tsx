@@ -43,6 +43,7 @@ import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
 import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME, ROYAL_NFT_CONTRACT_NAME, getRoyalNFTSourceCode } from '@/lib/contracts/contract-source';
 import { CONTRACTS } from '@/lib/config';
 import { ModelViewer } from '@/components/model-viewer';
+import { getUser, createUser, createCollection as createSupabaseCollection } from '@/lib/supabase';
 
 interface Layer {
   id: string;
@@ -666,14 +667,16 @@ export default function CreatePage() {
       setDeployTxHash(hash);
       setVerificationUrl(`${explorerBase}/tx/${hash}`);
 
-      // Save deployed collection to store
+      // Save deployed collection to store and Supabase
       if (deployedCollectionAddress && address) {
-        console.log('Saving collection to store:', {
+        console.log('Saving collection to store and Supabase:', {
           name: collectionDetails.name,
           symbol: collectionDetails.symbol,
           contractAddress: deployedCollectionAddress,
           creator: address,
         });
+        
+        // Save to localStorage store (backup)
         const collectionToSave = {
           id: crypto.randomUUID(),
           contractAddress: deployedCollectionAddress,
@@ -687,15 +690,47 @@ export default function CreatePage() {
           deployedAt: Date.now(),
           txHash: hash,
         };
+        
         try {
           addDeployedCollection(collectionToSave);
-          console.log('✅ Collection saved to store successfully!');
+          console.log('✅ Collection saved to localStorage store successfully!');
           
           // Verify it was saved
           const allCollections = useCollectionsStore.getState().getAllCollections();
           console.log('Current collections in store:', allCollections);
         } catch (error) {
           console.error('❌ Failed to save collection to store:', error);
+        }
+
+        // Save to Supabase
+        try {
+          // Get or create user
+          let user = await getUser(address);
+          if (!user) {
+            user = await getUser(address);
+            if (!user) {
+              user = await createUser(address);
+            }
+          }
+
+          // Create collection in Supabase
+          await createSupabaseCollection({
+            creator_id: user.id,
+            name: collectionDetails.name,
+            symbol: collectionDetails.symbol,
+            description: collectionDetails.description,
+            max_supply: collectionDetails.maxSupply,
+            mint_price_eth: parseFloat(collectionDetails.mintPrice),
+            mint_price_wei_wei: '0', // Will be updated from contract
+            royalty_percentage: collectionDetails.royaltyPercentage,
+            royalty_recipient: address,
+            banner_url: collectionDetails.bannerImage || undefined,
+            logo_url: collectionDetails.coverImage || undefined,
+            external_url: 'https://thehouseofjoshi.com',
+          });
+          console.log('✅ Collection saved to Supabase successfully!');
+        } catch (error) {
+          console.error('❌ Failed to save collection to Supabase:', error);
         }
       } else {
         console.warn('⚠️ Collection NOT saved - missing data:', {

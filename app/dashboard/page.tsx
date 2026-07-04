@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { useWalletStore, useCollectionsStore } from '@/lib/store';
+import { getCollections, getUser } from '@/lib/supabase';
 import Link from 'next/link';
 
 interface CollectionStats {
@@ -43,27 +44,78 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!address || !isConnected) return;
 
-    console.log('Dashboard - deployedCollections:', deployedCollections);
-    console.log('Dashboard - address:', address);
+    console.log('Dashboard - fetching from Supabase for address:', address);
 
-    // Filter collections created by the current user
-    const myCollections = deployedCollections.filter(
-      (col) => col.creatorAddress.toLowerCase() === address.toLowerCase()
-    );
+    // Fetch collections from Supabase
+    const fetchUserCollections = async () => {
+      try {
+        // Get user from Supabase
+        const user = await getUser(address);
+        if (!user) {
+          console.log('User not found in Supabase, falling back to localStorage');
+          // Fallback to localStorage
+          const myCollections = deployedCollections.filter(
+            (col) => col.creatorAddress.toLowerCase() === address.toLowerCase()
+          );
+          setUserCollections(myCollections);
+          setStats({
+            totalCollections: myCollections.length,
+            totalNFTsMinted: 0,
+            totalVolume: 0,
+            totalRoyalties: 0,
+          });
+          return;
+        }
 
-    console.log('Dashboard - myCollections:', myCollections);
-    setUserCollections(myCollections);
+        // Fetch collections for this user
+        const allCollections = await getCollections();
+        const myCollections = allCollections.filter(
+          (col: any) => col.creator_id === user.id
+        );
 
-    // Calculate stats
-    const collectionStats: CollectionStats = {
-      totalCollections: myCollections.length,
-      totalNFTsMinted: 0, // Will be calculated from contract
-      totalVolume: 0, // Will be calculated from contract
-      totalRoyalties: 0, // Will be calculated from contract
+        console.log('Dashboard - myCollections from Supabase:', myCollections);
+
+        // Convert to display format
+        const displayCollections = myCollections.map((col: any) => ({
+          id: col.id,
+          contractAddress: col.contract_address || '',
+          name: col.name,
+          symbol: col.symbol,
+          coverImage: col.logo_url || col.cover_image_url,
+          bannerImage: col.banner_url,
+          maxSupply: col.max_supply,
+          mintPrice: col.mint_price_eth?.toString() || '0',
+          creatorAddress: address,
+          deployedAt: col.deployed_at ? new Date(col.deployed_at).getTime() : Date.now(),
+          txHash: col.deployment_tx_hash || '',
+        }));
+
+        setUserCollections(displayCollections);
+        setStats({
+          totalCollections: displayCollections.length,
+          totalNFTsMinted: 0,
+          totalVolume: 0,
+          totalRoyalties: 0,
+        });
+      } catch (error) {
+        console.error('Failed to fetch collections from Supabase:', error);
+        // Fallback to localStorage
+        console.log('Falling back to localStorage collections...');
+        const myCollections = deployedCollections.filter(
+          (col) => col.creatorAddress.toLowerCase() === address.toLowerCase()
+        );
+        setUserCollections(myCollections);
+        setStats({
+          totalCollections: myCollections.length,
+          totalNFTsMinted: 0,
+          totalVolume: 0,
+          totalRoyalties: 0,
+        });
+      }
     };
 
-    setStats(collectionStats);
-  }, [address, isConnected, deployedCollections]);
+    fetchUserCollections();
+  }, [address, isConnected]);
 
   return (
     <div className="min-h-screen flex flex-col">

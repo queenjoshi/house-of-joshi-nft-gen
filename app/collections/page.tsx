@@ -12,6 +12,7 @@ import { Footer } from '@/components/footer';
 import Link from 'next/link';
 import { useCollectionsStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { getCollections } from '@/lib/supabase';
 
 type LayoutMode = 'grid' | 'list';
 
@@ -47,28 +48,56 @@ export default function CollectionsPage() {
   useEffect(() => {
     if (!isHydrated) return;
 
-    console.log('Collections page - deployedCollections:', deployedCollections);
-    console.log('Collections page - isHydrated:', isHydrated);
+    console.log('Collections page - fetching from Supabase...');
 
-    // Convert deployed collections to display format
-    const displayCollections: CollectionCard[] = deployedCollections.map((col) => ({
-      id: col.id,
-      contractAddress: col.contractAddress,
-      name: col.name,
-      symbol: col.symbol,
-      coverImage: col.coverImage,
-      bannerImage: col.bannerImage,
-      maxSupply: col.maxSupply,
-      minted: 0,
-      mintPrice: col.mintPrice,
-      creator: col.creatorAddress,
-      isVerified: false,
-    }));
-    
-    console.log('Collections page - displayCollections:', displayCollections);
-    setCollections(displayCollections);
-    setIsLoading(false);
-  }, [deployedCollections, isHydrated]);
+    // Fetch collections from Supabase
+    const fetchCollections = async () => {
+      try {
+        const supabaseCollections = await getCollections({ status: 'live' });
+        console.log('Collections from Supabase:', supabaseCollections);
+
+        // Convert Supabase collections to display format
+        const displayCollections: CollectionCard[] = supabaseCollections.map((col: any) => ({
+          id: col.id,
+          contractAddress: col.contract_address || '',
+          name: col.name,
+          symbol: col.symbol,
+          coverImage: col.logo_url || col.cover_image_url,
+          bannerImage: col.banner_url,
+          maxSupply: col.max_supply,
+          minted: 0, // Will be calculated from contract
+          mintPrice: col.mint_price_eth?.toString() || '0',
+          creator: col.users?.wallet_address || '',
+          isVerified: col.is_verified || false,
+        }));
+
+        console.log('Collections page - displayCollections:', displayCollections);
+        setCollections(displayCollections);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Failed to fetch collections from Supabase:', error);
+        // Fallback to localStorage if Supabase fails
+        console.log('Falling back to localStorage collections...');
+        const displayCollections: CollectionCard[] = deployedCollections.map((col) => ({
+          id: col.id,
+          contractAddress: col.contractAddress,
+          name: col.name,
+          symbol: col.symbol,
+          coverImage: col.coverImage,
+          bannerImage: col.bannerImage,
+          maxSupply: col.maxSupply,
+          minted: 0,
+          mintPrice: col.mintPrice,
+          creator: col.creatorAddress,
+          isVerified: false,
+        }));
+        setCollections(displayCollections);
+        setIsLoading(false);
+      }
+    };
+
+    fetchCollections();
+  }, [isHydrated]);
 
   const handleDebug = () => {
     const stored = localStorage.getItem('collections-storage');

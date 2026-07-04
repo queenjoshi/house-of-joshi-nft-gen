@@ -147,6 +147,7 @@ export const useCollectionsStore = create<CollectionsState>()(
         set((state) => {
           const updated = [...state.deployedCollections, collection];
           console.log('Collections store updated:', updated);
+          console.log('Collections count:', updated.length);
           return { deployedCollections: updated };
         });
       },
@@ -165,6 +166,12 @@ export const useCollectionsStore = create<CollectionsState>()(
     {
       name: 'collections-storage',
       partialize: (state) => ({ deployedCollections: state.deployedCollections }),
+      onRehydrateStorage: () => (state) => {
+        console.log('Collections store rehydrating...', state);
+        if (state) {
+          console.log('Rehydrated collections:', state.deployedCollections);
+        }
+      },
     }
   )
 );
