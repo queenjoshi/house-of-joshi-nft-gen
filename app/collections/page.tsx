@@ -95,6 +95,25 @@ ${JSON.stringify(collections, null, 2)}
     return `https://opensea.io/collection/${contractAddress}`;
   };
 
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 py-8 md:py-12">
+          <div className="container px-4 max-w-7xl mx-auto">
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Crown className="h-12 w-12 mx-auto mb-4 text-muted-foreground animate-pulse" />
+                <p className="text-muted-foreground">Loading collections...</p>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
