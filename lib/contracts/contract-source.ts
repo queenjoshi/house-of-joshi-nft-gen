@@ -687,3 +687,93 @@ export const ROYAL_NFT_ABI = [
     type: "function",
   },
 ];
+
+// Deploy collection function for AI mint page
+export async function deployCollection(
+  creatorAddress: string,
+  collectionDetails: {
+    name: string;
+    symbol: string;
+    description: string;
+    maxSupply: number;
+    mintPrice: string;
+    royaltyPercentage: number;
+  },
+  metadataURI: string
+): Promise<string> {
+  const { encodeFunctionData, parseEther, createPublicClient, http } = await import('viem');
+  const { useWalletClient } = await import('wagmi');
+  const { CONTRACTS } = await import('@/lib/config');
+
+  // Get wallet client
+  const walletClient = await useWalletClient();
+  if (!walletClient.data) {
+    throw new Error('Wallet client not available. Please connect your wallet.');
+  }
+
+  const client = walletClient.data;
+  const address = creatorAddress as `0x${string}`;
+
+  // Set deployment fee to 0.0001 ETH
+  const deploymentFeeWei = parseEther('0.0001');
+
+  // Prepare collection parameters
+  const collectionParams = {
+    name: collectionDetails.name,
+    symbol: collectionDetails.symbol,
+    contractURI: metadataURI,
+    baseURI: metadataURI,
+    unrevealedURI: metadataURI,
+    maxSupply: BigInt(collectionDetails.maxSupply),
+    mintPrice: parseEther(collectionDetails.mintPrice),
+    maxMintPerWallet: BigInt(0),
+    mintStart: BigInt(Math.floor(Date.now() / 1000)),
+    mintEnd: BigInt(0),
+    revealTime: BigInt(0),
+    royaltyReceiver: address,
+    royaltyBps: BigInt(collectionDetails.royaltyPercentage * 100),
+    allowlistRoot: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
+  };
+
+  // Send transaction
+  const hash = await client.writeContract({
+    address: CONTRACTS.FACTORY as `0x${string}`,
+    abi: FACTORY_ABI,
+    functionName: 'createCollection',
+    args: [collectionParams],
+    value: deploymentFeeWei,
+  });
+
+  // Wait for transaction confirmation
+  const publicRpcUrl = 'https://sepolia.base.org';
+  const publicClient = createPublicClient({
+    transport: http(publicRpcUrl)
+  });
+
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: hash as `0x${string}`,
+  });
+
+  if (receipt.status === 'reverted') {
+    throw new Error('Transaction failed');
+  }
+
+  // Extract collection address from event logs
+  let deployedCollectionAddress: string | null = null;
+  if (receipt.logs && receipt.logs.length > 0) {
+    for (const log of receipt.logs) {
+      if (log.address?.toLowerCase() === CONTRACTS.FACTORY.toLowerCase()) {
+        if (log.topics && log.topics.length >= 3 && log.topics[2]) {
+          deployedCollectionAddress = '0x' + log.topics[2].slice(-40);
+          break;
+        }
+      }
+    }
+  }
+
+  if (!deployedCollectionAddress) {
+    throw new Error('Failed to extract deployed contract address');
+  }
+
+  return deployedCollectionAddress;
+}

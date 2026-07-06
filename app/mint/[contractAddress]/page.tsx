@@ -38,6 +38,7 @@ export default function MintPage({ params }: MintPageProps) {
   const [isMinting, setIsMinting] = useState(false);
 
   const isCorrectNetwork = isBaseNetwork(chainId);
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   const handleMint = async () => {
     if (!isConnected || !isCorrectNetwork) return;
