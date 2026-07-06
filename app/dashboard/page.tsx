@@ -131,7 +131,7 @@ export default function DashboardPage() {
           symbol: col.symbol,
           coverImage: col.coverImage,
           bannerImage: col.bannerImage,
-          maxSupply: col.max_supply,
+          maxSupply: col.maxSupply,
           mintPrice: col.mintPrice,
           isVerified: false,
           description: null,

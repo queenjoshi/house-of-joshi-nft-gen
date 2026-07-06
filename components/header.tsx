@@ -17,6 +17,7 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  Wand2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUIStore, isBaseNetwork, BASE_MAINNET, BASE_SEPOLIA } from '@/lib/store';
@@ -35,6 +36,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
   { href: '/collections', label: 'Collections', icon: Compass },
   { href: '/launchpad', label: 'Launchpad', icon: Sparkles },
+  { href: '/ai-generator', label: 'AI Generator', icon: Wand2 },
   { href: '/referral', label: 'Referral', icon: Users },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];

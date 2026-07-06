@@ -163,6 +163,45 @@ export async function createCollection(collection: {
   royalty_recipient?: string;
   banner_url?: string;
   logo_url?: string;
+  cover_image_url?: string;
+  contract_address?: string;
+  deployment_tx_hash?: string;
+  is_public?: boolean;
+  is_verified?: boolean;
+  status?: string;
+  deployed_at?: string;
+  external_url?: string;
+  twitter_url?: string;
+  discord_url?: string;
+}) {
+  const { data, error } = await supabase
+    .from('collections')
+    .insert(collection)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createSupabaseCollection(collection: {
+  creator_id: string;
+  contract_address: string;
+  name: string;
+  symbol: string;
+  description?: string;
+  max_supply: number;
+  mint_price_eth: number;
+  mint_price_wei_wei: string;
+  royalty_percentage: number;
+  royalty_recipient?: string;
+  banner_url?: string;
+  cover_image_url?: string;
+  deployment_tx_hash?: string;
+  is_public?: boolean;
+  is_verified?: boolean;
+  status?: string;
+  deployed_at?: string;
   external_url?: string;
   twitter_url?: string;
   discord_url?: string;

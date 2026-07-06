@@ -7,8 +7,6 @@ import {
   Crown,
   Wallet,
   Share2,
-  Copy,
-  Check,
   ExternalLink,
   ChevronLeft,
   ChevronRight,
@@ -38,20 +36,8 @@ export default function MintPage({ params }: MintPageProps) {
   const { isConnected, chainId, address } = useWalletStore();
   const [mintQuantity, setMintQuantity] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const isCorrectNetwork = isBaseNetwork(chainId);
-
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const referralLink = typeof window !== 'undefined' && isConnected
-    ? `${window.location.origin}${window.location.pathname}?ref=`
-    : '';
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleMint = async () => {
     if (!isConnected || !isCorrectNetwork) return;
@@ -350,31 +336,6 @@ export default function MintPage({ params }: MintPageProps) {
                       </DialogContent>
                     </Dialog>
                   </div>
-
-                  {/* Referral Link */}
-                  {isConnected && referralLink && (
-                    <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground">Your Referral Link</label>
-                      <div className="flex gap-2">
-                        <input
-                          readOnly
-                          value={referralLink}
-                          className="flex-1 px-3 py-2 rounded-lg bg-royal-500/10 border border-royal-500/30 text-sm truncate"
-                        />
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="royal-border shrink-0"
-                          onClick={() => handleCopy(referralLink)}
-                        >
-                          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Earn rewards when people mint using your link
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>

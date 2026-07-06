@@ -1,0 +1,963 @@
+diff --git a/app/api/verify-contract/route.ts b/app/api/verify-contract/route.ts
+index b1d47ce..3ff01af 100644
+--- a/app/api/verify-contract/route.ts
++++ b/app/api/verify-contract/route.ts
+@@ -1,10 +1,69 @@
+ import { NextRequest, NextResponse } from 'next/server';
+-import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
++import { encodeAbiParameters } from 'viem';
++import { getRoyalNFTSourceCode, COMPILER_VERSION, ROYAL_NFT_CONTRACT_NAME } from '@/lib/contracts/contract-source';
++
++// Etherscan API V2 (unified multichain endpoint). BaseScan's own V1 endpoints
++// (basescan.org/api, sepolia.basescan.org/api) and BaseScan-issued API keys
++// were fully deprecated on Aug 15, 2025. A single Etherscan API key now works
++// across Base mainnet (chainid=8453) and Base Sepolia (chainid=84532).
++// Get a key at https://etherscan.io/myapikey
++const ETHERSCAN_V2_BASE = 'https://api.etherscan.io/v2/api';
++
++// Constructor ABI for RoyalNFT — must match the CollectionParams struct exactly,
++// since the deployed bytecode has these ABI-encoded args appended to it and
++// BaseScan re-derives the bytecode using them.
++const CONSTRUCTOR_PARAMS = [
++  {
++    type: 'tuple',
++    name: 'p',
++    components: [
++      { name: 'name', type: 'string' },
++      { name: 'symbol', type: 'string' },
++      { name: 'contractURI', type: 'string' },
++      { name: 'baseURI', type: 'string' },
++      { name: 'unrevealedURI', type: 'string' },
++      { name: 'maxSupply', type: 'uint256' },
++      { name: 'mintPrice', type: 'uint256' },
++      { name: 'maxMintPerWallet', type: 'uint256' },
++      { name: 'mintStart', type: 'uint64' },
++      { name: 'mintEnd', type: 'uint64' },
++      { name: 'revealTime', type: 'uint64' },
++      { name: 'royaltyReceiver', type: 'address' },
++      { name: 'royaltyBps', type: 'uint96' },
++      { name: 'allowlistRoot', type: 'bytes32' },
++    ],
++  },
++] as const;
++
++function encodeConstructorArgs(collectionParams: any): string {
++  // encodeAbiParameters (NOT encodeFunctionData with functionName: 'constructor',
++  // which is invalid — encodeFunctionData only encodes calls, not constructor args.
++  // That silent failure was why constructor args were always submitted empty before.)
++  const encoded = encodeAbiParameters(CONSTRUCTOR_PARAMS, [
++    {
++      name: collectionParams.name,
++      symbol: collectionParams.symbol,
++      contractURI: collectionParams.contractURI,
++      baseURI: collectionParams.baseURI,
++      unrevealedURI: collectionParams.unrevealedURI,
++      maxSupply: BigInt(collectionParams.maxSupply),
++      mintPrice: BigInt(collectionParams.mintPrice),
++      maxMintPerWallet: BigInt(collectionParams.maxMintPerWallet),
++      mintStart: BigInt(collectionParams.mintStart),
++      mintEnd: BigInt(collectionParams.mintEnd),
++      revealTime: BigInt(collectionParams.revealTime),
++      royaltyReceiver: collectionParams.royaltyReceiver,
++      royaltyBps: BigInt(collectionParams.royaltyBps),
++      allowlistRoot: collectionParams.allowlistRoot,
++    },
++  ]);
++  return encoded.slice(2); // strip 0x — BaseScan wants the raw hex
++}
+ 
+ export async function POST(request: NextRequest) {
+   try {
+     const body = await request.json();
+-    const { contractAddress, networkChainId } = body;
++    const { contractAddress, networkChainId, collectionParams } = body;
+ 
+     if (!contractAddress) {
+       return NextResponse.json(
+@@ -13,13 +72,30 @@ export async function POST(request: NextRequest) {
+       );
+     }
+ 
+-    const explorerBase = networkChainId === 84532
+-      ? 'https://sepolia.basescan.org'
+-      : 'https://basescan.org';
+-    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
++    const chainId = networkChainId === 84532 ? 84532 : 8453;
++    // Server-only secret — never expose via NEXT_PUBLIC_*, since this route
++    // runs on the server and the browser never needs to see the key.
++    const apiKey = process.env.ETHERSCAN_API_KEY || '';
++
++    if (!apiKey) {
++      return NextResponse.json(
++        { error: 'ETHERSCAN_API_KEY is not configured on the server' },
++        { status: 500 }
++      );
++    }
++
++    let constructorArguments = '';
++    try {
++      constructorArguments = collectionParams ? encodeConstructorArgs(collectionParams) : '';
++    } catch (e) {
++      console.error('Constructor arg encoding failed:', e);
++      return NextResponse.json(
++        { error: 'Failed to encode constructor arguments' },
++        { status: 400 }
++      );
++    }
+ 
+-    // Submit verification request to BaseScan
+-    const verifyResponse = await fetch(`${explorerBase}/api`, {
++    const verifyResponse = await fetch(`${ETHERSCAN_V2_BASE}?chainid=${chainId}`, {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/x-www-form-urlencoded',
+@@ -29,13 +105,13 @@ export async function POST(request: NextRequest) {
+         action: 'verifysourcecode',
+         apikey: apiKey,
+         contractaddress: contractAddress,
+-        sourceCode: ROYAL_NFT_SOURCE_CODE,
++        sourceCode: getRoyalNFTSourceCode(),
+         codeformat: 'solidity-single-file',
+-        contractname: CONTRACT_NAME,
++        contractname: ROYAL_NFT_CONTRACT_NAME,
+         compilerversion: COMPILER_VERSION,
+         optimizationUsed: '0',
+         runs: '200',
+-        constructorArguements: '',
++        constructorArguements: constructorArguments,
+         licenseType: '3',
+       }),
+     });
+@@ -51,7 +127,7 @@ export async function POST(request: NextRequest) {
+       });
+     } else {
+       return NextResponse.json(
+-        { error: verifyData.message || 'Verification submission failed' },
++        { error: verifyData.result || verifyData.message || 'Verification submission failed' },
+         { status: 400 }
+       );
+     }
+@@ -77,14 +153,12 @@ export async function GET(request: NextRequest) {
+       );
+     }
+ 
+-    const explorerBase = networkChainId === 84532
+-      ? 'https://sepolia.basescan.org'
+-      : 'https://basescan.org';
+-    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
++    const chainId = networkChainId === 84532 ? 84532 : 8453;
++    const apiKey = process.env.ETHERSCAN_API_KEY || '';
+ 
+-    // Check verification status
++    // Check verification status via the same V2 endpoint
+     const statusResponse = await fetch(
+-      `${explorerBase}/api?module=contract&action=getsourcecode&address=${contractAddress}&apikey=${apiKey}`
++      `${ETHERSCAN_V2_BASE}?chainid=${chainId}&module=contract&action=getsourcecode&address=${contractAddress}&apikey=${apiKey}`
+     );
+     const statusData = await statusResponse.json();
+ 
+diff --git a/app/collections/page.tsx b/app/collections/page.tsx
+index 50d947a..6ede256 100644
+--- a/app/collections/page.tsx
++++ b/app/collections/page.tsx
+@@ -11,6 +11,7 @@ import { Header } from '@/components/header';
+ import { Footer } from '@/components/footer';
+ import Link from 'next/link';
+ import { useCollectionsStore } from '@/lib/store';
++import { getCollections } from '@/lib/supabase';
+ import { cn } from '@/lib/utils';
+ 
+ type LayoutMode = 'grid' | 'list';
+@@ -38,6 +39,7 @@ export default function CollectionsPage() {
+   const [debugInfo, setDebugInfo] = useState<string>('');
+   
+   const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
++  const [loadError, setLoadError] = useState<string | null>(null);
+ 
+   // Ensure hydration is complete before rendering
+   useEffect(() => {
+@@ -47,39 +49,74 @@ export default function CollectionsPage() {
+   useEffect(() => {
+     if (!isHydrated) return;
+ 
+-    console.log('Collections page - deployedCollections:', deployedCollections);
+-    console.log('Collections page - isHydrated:', isHydrated);
+-
+-    // Convert deployed collections to display format
+-    const displayCollections: CollectionCard[] = deployedCollections.map((col) => ({
+-      id: col.id,
+-      contractAddress: col.contractAddress,
+-      name: col.name,
+-      symbol: col.symbol,
+-      coverImage: col.coverImage,
+-      bannerImage: col.bannerImage,
+-      maxSupply: col.maxSupply,
+-      minted: 0,
+-      mintPrice: col.mintPrice,
+-      creator: col.creatorAddress,
+-      isVerified: false,
+-    }));
+-    
+-    console.log('Collections page - displayCollections:', displayCollections);
+-    setCollections(displayCollections);
+-    setIsLoading(false);
+-  }, [deployedCollections, isHydrated]);
++    let cancelled = false;
++
++    async function loadCollections() {
++      setIsLoading(true);
++      setLoadError(null);
++
++      // Supabase is the source of truth — every visitor sees these, on any device.
++      let dbCollections: any[] = [];
++      try {
++        dbCollections = (await getCollections()) || [];
++      } catch (e) {
++        console.error('Failed to load collections from Supabase:', e);
++        setLoadError('Could not reach the collections database — showing locally cached collections only.');
++      }
++
++      const displayFromDb: CollectionCard[] = dbCollections.map((col) => ({
++        id: col.id,
++        contractAddress: col.contract_address,
++        name: col.name,
++        symbol: col.symbol,
++        coverImage: col.cover_image_url,
++        bannerImage: col.banner_url,
++        maxSupply: col.max_supply,
++        minted: 0, // live mint count comes from the contract itself, wired up separately
++        mintPrice: String(col.mint_price_eth ?? '0'),
++        creator: col.users?.wallet_address ?? '',
++        isVerified: !!col.is_verified,
++      }));
++
++      // Fallback: include anything sitting only in this browser's local store
++      // (e.g. Supabase write failed right after deploy) that isn't in the DB list yet.
++      const dbAddresses = new Set(displayFromDb.map((c) => c.contractAddress?.toLowerCase()));
++      const localOnly: CollectionCard[] = deployedCollections
++        .filter((col) => !dbAddresses.has(col.contractAddress?.toLowerCase()))
++        .map((col) => ({
++          id: col.id,
++          contractAddress: col.contractAddress,
++          name: col.name,
++          symbol: col.symbol,
++          coverImage: col.coverImage,
++          bannerImage: col.bannerImage,
++          maxSupply: col.maxSupply,
++          minted: 0,
++          mintPrice: col.mintPrice,
++          creator: col.creatorAddress,
++          isVerified: false,
++        }));
++
++      if (!cancelled) {
++        setCollections([...displayFromDb, ...localOnly]);
++        setIsLoading(false);
++      }
++    }
++
++    loadCollections();
++
++    return () => {
++      cancelled = true;
++    };
++  }, [isHydrated, deployedCollections]);
+ 
+   const handleDebug = () => {
+     const stored = localStorage.getItem('collections-storage');
+     const info = `
+-Collections in localStorage:
++Collections in localStorage (this browser only):
+ ${stored ? JSON.stringify(JSON.parse(stored), null, 2) : 'No data found'}
+ 
+-Collections in state:
+-${JSON.stringify(deployedCollections, null, 2)}
+-
+-Display collections:
++Collections currently displayed (Supabase + local fallback merged):
+ ${JSON.stringify(collections, null, 2)}
+     `;
+     setDebugInfo(info);
+@@ -134,6 +171,9 @@ ${JSON.stringify(collections, null, 2)}
+               <p className="text-muted-foreground text-xs sm:text-sm md:text-base lg:text-lg max-w-2xl">
+                 Discover and mint from all collections created through the House of Joshi Launchpad.
+               </p>
++              {loadError && (
++                <p className="text-amber-400 text-xs sm:text-sm mt-2">{loadError}</p>
++              )}
+             </motion.div>
+ 
+             {/* Controls Bar */}
+diff --git a/app/dashboard/page.tsx b/app/dashboard/page.tsx
+index f78ccfb..3738b58 100644
+--- a/app/dashboard/page.tsx
++++ b/app/dashboard/page.tsx
+@@ -12,16 +12,46 @@ import {
+   Activity,
+   ExternalLink,
+   Sparkles,
++  Pencil,
++  Loader2,
++  CheckCircle2,
+ } from 'lucide-react';
+ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+ import { Button } from '@/components/ui/button';
+ import { Badge } from '@/components/ui/badge';
++import { Input } from '@/components/ui/input';
++import { Label } from '@/components/ui/label';
++import { Textarea } from '@/components/ui/textarea';
++import {
++  Dialog,
++  DialogContent,
++  DialogHeader,
++  DialogTitle,
++  DialogFooter,
++} from '@/components/ui/dialog';
+ import { Header } from '@/components/header';
+ import { Footer } from '@/components/footer';
+ import { useWalletStore, useCollectionsStore } from '@/lib/store';
++import { getUser, getCollections, updateCollectionByAddress } from '@/lib/supabase';
+ import Link from 'next/link';
+ 
++interface DashboardCollection {
++  id: string;
++  contractAddress: string;
++  name: string;
++  symbol: string;
++  coverImage: string | null;
++  bannerImage: string | null;
++  maxSupply: number;
++  mintPrice: string;
++  isVerified: boolean;
++  description: string | null;
++  externalUrl: string | null;
++  twitterUrl: string | null;
++  discordUrl: string | null;
++}
++
+ interface CollectionStats {
+   totalCollections: number;
+   totalNFTsMinted: number;
+@@ -32,7 +62,8 @@ interface CollectionStats {
+ export default function DashboardPage() {
+   const { isConnected, address } = useWalletStore();
+   const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
+-  const [userCollections, setUserCollections] = useState<typeof deployedCollections>([]);
++  const [userCollections, setUserCollections] = useState<DashboardCollection[]>([]);
++  const [isLoadingCollections, setIsLoadingCollections] = useState(true);
+   const [stats, setStats] = useState<CollectionStats>({
+     totalCollections: 0,
+     totalNFTsMinted: 0,
+@@ -40,31 +71,139 @@ export default function DashboardPage() {
+     totalRoyalties: 0,
+   });
+ 
++  // Edit modal state
++  const [editingCollection, setEditingCollection] = useState<DashboardCollection | null>(null);
++  const [editForm, setEditForm] = useState({
++    description: '',
++    externalUrl: '',
++    twitterUrl: '',
++    discordUrl: '',
++  });
++  const [isSaving, setIsSaving] = useState(false);
++  const [saveSuccess, setSaveSuccess] = useState(false);
++
+   useEffect(() => {
+     if (!address || !isConnected) return;
+ 
+-    console.log('Dashboard - deployedCollections:', deployedCollections);
+-    console.log('Dashboard - address:', address);
++    let cancelled = false;
+ 
+-    // Filter collections created by the current user
+-    const myCollections = deployedCollections.filter(
+-      (col) => col.creatorAddress.toLowerCase() === address.toLowerCase()
+-    );
++    async function loadUserCollections() {
++      setIsLoadingCollections(true);
+ 
+-    console.log('Dashboard - myCollections:', myCollections);
+-    setUserCollections(myCollections);
++      let dbCollections: any[] = [];
++      try {
++        const user = await getUser(address as string);
++        if (user) {
++          dbCollections = (await getCollections({ creatorId: user.id })) || [];
++        }
++      } catch (e) {
++        console.error('Failed to load dashboard collections from Supabase:', e);
++      }
+ 
+-    // Calculate stats
+-    const collectionStats: CollectionStats = {
+-      totalCollections: myCollections.length,
+-      totalNFTsMinted: 0, // Will be calculated from contract
+-      totalVolume: 0, // Will be calculated from contract
+-      totalRoyalties: 0, // Will be calculated from contract
+-    };
++      const fromDb: DashboardCollection[] = dbCollections.map((col) => ({
++        id: col.id,
++        contractAddress: col.contract_address,
++        name: col.name,
++        symbol: col.symbol,
++        coverImage: col.cover_image_url,
++        bannerImage: col.banner_url,
++        maxSupply: col.max_supply,
++        mintPrice: String(col.mint_price_eth ?? '0'),
++        isVerified: !!col.is_verified,
++        description: col.description,
++        externalUrl: col.external_url,
++        twitterUrl: col.twitter_url,
++        discordUrl: col.discord_url,
++      }));
++
++      // Fallback: same-browser collections that haven't synced to Supabase yet
++      const dbAddresses = new Set(fromDb.map((c) => c.contractAddress?.toLowerCase()));
++      const localOnly: DashboardCollection[] = deployedCollections
++        .filter(
++          (col) =>
++            col.creatorAddress.toLowerCase() === (address as string).toLowerCase() &&
++            !dbAddresses.has(col.contractAddress?.toLowerCase())
++        )
++        .map((col) => ({
++          id: col.id,
++          contractAddress: col.contractAddress,
++          name: col.name,
++          symbol: col.symbol,
++          coverImage: col.coverImage,
++          bannerImage: col.bannerImage,
++          maxSupply: col.maxSupply,
++          mintPrice: col.mintPrice,
++          isVerified: false,
++          description: null,
++          externalUrl: null,
++          twitterUrl: null,
++          discordUrl: null,
++        }));
++
++      if (!cancelled) {
++        const combined = [...fromDb, ...localOnly];
++        setUserCollections(combined);
++        setStats({
++          totalCollections: combined.length,
++          totalNFTsMinted: 0, // will be calculated from contract reads
++          totalVolume: 0,
++          totalRoyalties: 0,
++        });
++        setIsLoadingCollections(false);
++      }
++    }
+ 
+-    setStats(collectionStats);
++    loadUserCollections();
++
++    return () => {
++      cancelled = true;
++    };
+   }, [address, isConnected, deployedCollections]);
+ 
++  const openEditModal = (collection: DashboardCollection) => {
++    setEditingCollection(collection);
++    setEditForm({
++      description: collection.description || '',
++      externalUrl: collection.externalUrl || '',
++      twitterUrl: collection.twitterUrl || '',
++      discordUrl: collection.discordUrl || '',
++    });
++    setSaveSuccess(false);
++  };
++
++  const handleSaveEdit = async () => {
++    if (!editingCollection) return;
++    setIsSaving(true);
++    try {
++      await updateCollectionByAddress(editingCollection.contractAddress, {
++        description: editForm.description,
++        external_url: editForm.externalUrl,
++        twitter_url: editForm.twitterUrl,
++        discord_url: editForm.discordUrl,
++      });
++
++      setUserCollections((prev) =>
++        prev.map((c) =>
++          c.contractAddress === editingCollection.contractAddress
++            ? {
++                ...c,
++                description: editForm.description,
++                externalUrl: editForm.externalUrl,
++                twitterUrl: editForm.twitterUrl,
++                discordUrl: editForm.discordUrl,
++              }
++            : c
++        )
++      );
++      setSaveSuccess(true);
++      setTimeout(() => setEditingCollection(null), 900);
++    } catch (e) {
++      console.error('Failed to save collection edits:', e);
++    } finally {
++      setIsSaving(false);
++    }
++  };
++
+   return (
+     <div className="min-h-screen flex flex-col">
+       <Header />
+@@ -145,7 +284,14 @@ export default function DashboardPage() {
+                     </TabsList>
+ 
+                     <TabsContent value="collections">
+-                      {userCollections.length === 0 ? (
++                      {isLoadingCollections ? (
++                        <Card className="royal-card text-center py-8 md:py-12">
++                          <CardContent>
++                            <Loader2 className="h-8 w-8 mx-auto mb-4 text-muted-foreground animate-spin" />
++                            <p className="text-muted-foreground text-sm">Loading your collections...</p>
++                          </CardContent>
++                        </Card>
++                      ) : userCollections.length === 0 ? (
+                         <Card className="royal-card text-center py-8 md:py-12">
+                           <CardContent>
+                             <Image className="h-10 md:h-12 w-10 md:w-12 mx-auto mb-4 text-muted-foreground" />
+@@ -186,6 +332,15 @@ export default function DashboardPage() {
+                                       <Badge variant="outline" className="text-xs flex-shrink-0">
+                                         {collection.symbol}
+                                       </Badge>
++                                      {collection.isVerified ? (
++                                        <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-xs flex-shrink-0">
++                                          ✓ Verified
++                                        </Badge>
++                                      ) : (
++                                        <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs flex-shrink-0">
++                                          Verifying…
++                                        </Badge>
++                                      )}
+                                     </div>
+                                     <p className="text-xs md:text-sm text-muted-foreground mb-2">
+                                       Deployed on Base Chain
+@@ -208,6 +363,15 @@ export default function DashboardPage() {
+ 
+                                   {/* Actions */}
+                                   <div className="flex gap-2 w-full sm:w-auto">
++                                    <Button
++                                      size="sm"
++                                      variant="outline"
++                                      className="royal-border h-8 md:h-9 text-xs md:text-sm"
++                                      onClick={() => openEditModal(collection)}
++                                    >
++                                      <Pencil className="h-3 w-3 md:h-4 md:w-4 mr-1" />
++                                      Edit
++                                    </Button>
+                                     <Button
+                                       size="sm"
+                                       className="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-white h-8 md:h-9 text-xs md:text-sm"
+@@ -295,6 +459,82 @@ export default function DashboardPage() {
+         </div>
+       </main>
+ 
++      {/* Edit Collection Modal */}
++      <Dialog open={!!editingCollection} onOpenChange={(open) => !open && setEditingCollection(null)}>
++        <DialogContent className="royal-card">
++          <DialogHeader>
++            <DialogTitle>Edit {editingCollection?.name}</DialogTitle>
++          </DialogHeader>
++
++          <div className="space-y-4 py-2">
++            <p className="text-xs text-muted-foreground">
++              On-chain fields (name, symbol, max supply) can't change after deployment.
++              Mint price, base URI, and mint window can be updated via your contract's
++              owner functions on the Manage page. This edits the collection's public listing info.
++            </p>
++
++            <div className="space-y-2">
++              <Label htmlFor="edit-description">Description</Label>
++              <Textarea
++                id="edit-description"
++                value={editForm.description}
++                onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
++                rows={4}
++                placeholder="Tell collectors about this collection..."
++              />
++            </div>
++
++            <div className="space-y-2">
++              <Label htmlFor="edit-external-url">Website</Label>
++              <Input
++                id="edit-external-url"
++                value={editForm.externalUrl}
++                onChange={(e) => setEditForm((f) => ({ ...f, externalUrl: e.target.value }))}
++                placeholder="https://yourproject.com"
++              />
++            </div>
++
++            <div className="space-y-2">
++              <Label htmlFor="edit-twitter-url">Twitter / X</Label>
++              <Input
++                id="edit-twitter-url"
++                value={editForm.twitterUrl}
++                onChange={(e) => setEditForm((f) => ({ ...f, twitterUrl: e.target.value }))}
++                placeholder="https://x.com/yourhandle"
++              />
++            </div>
++
++            <div className="space-y-2">
++              <Label htmlFor="edit-discord-url">Discord</Label>
++              <Input
++                id="edit-discord-url"
++                value={editForm.discordUrl}
++                onChange={(e) => setEditForm((f) => ({ ...f, discordUrl: e.target.value }))}
++                placeholder="https://discord.gg/yourinvite"
++              />
++            </div>
++          </div>
++
++          <DialogFooter>
++            <Button variant="outline" onClick={() => setEditingCollection(null)} disabled={isSaving}>
++              Cancel
++            </Button>
++            <Button
++              className="bg-amber-500 hover:bg-amber-600 text-white"
++              onClick={handleSaveEdit}
++              disabled={isSaving}
++            >
++              {isSaving ? (
++                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
++              ) : saveSuccess ? (
++                <CheckCircle2 className="h-4 w-4 mr-2" />
++              ) : null}
++              {saveSuccess ? 'Saved' : 'Save Changes'}
++            </Button>
++          </DialogFooter>
++        </DialogContent>
++      </Dialog>
++
+       <Footer />
+     </div>
+   );
+diff --git a/app/launchpad/page.tsx b/app/launchpad/page.tsx
+index 4c3c485..447515e 100644
+--- a/app/launchpad/page.tsx
++++ b/app/launchpad/page.tsx
+@@ -41,6 +41,7 @@ import { isBaseNetwork, BASE_MAINNET, useCollectionsStore } from '@/lib/store';
+ import { cn } from '@/lib/utils';
+ import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
+ import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME, ROYAL_NFT_CONTRACT_NAME, getRoyalNFTSourceCode } from '@/lib/contracts/contract-source';
++import { upsertUser, createCollection as createSupabaseCollection, updateCollectionByAddress } from '@/lib/supabase';
+ import { CONTRACTS } from '@/lib/config';
+ import { ModelViewer } from '@/components/model-viewer';
+ 
+@@ -666,7 +667,8 @@ export default function CreatePage() {
+       setDeployTxHash(hash);
+       setVerificationUrl(`${explorerBase}/tx/${hash}`);
+ 
+-      // Save deployed collection to store
++      // Save deployed collection to local store (fast UI feedback) AND to Supabase
++      // (source of truth for the public Collections page + every device's Dashboard).
+       if (deployedCollectionAddress && address) {
+         console.log('Saving collection to store:', {
+           name: collectionDetails.name,
+@@ -689,13 +691,34 @@ export default function CreatePage() {
+         };
+         try {
+           addDeployedCollection(collectionToSave);
+-          console.log('✅ Collection saved to store successfully!');
+-          
+-          // Verify it was saved
+-          const allCollections = useCollectionsStore.getState().getAllCollections();
+-          console.log('Current collections in store:', allCollections);
+         } catch (error) {
+-          console.error('❌ Failed to save collection to store:', error);
++          console.error('❌ Failed to save collection to local store:', error);
++        }
++
++        try {
++          const user = await upsertUser(address);
++          await createSupabaseCollection({
++            creator_id: user.id,
++            contract_address: deployedCollectionAddress,
++            name: collectionDetails.name,
++            symbol: collectionDetails.symbol,
++            description: collectionDetails.description,
++            max_supply: collectionDetails.maxSupply,
++            mint_price_eth: parseFloat(collectionDetails.mintPrice),
++            mint_price_wei: parseEther(collectionDetails.mintPrice).toString(),
++            royalty_percentage: collectionDetails.royaltyPercentage,
++            royalty_recipient: address,
++            banner_url: collectionDetails.bannerImage || undefined,
++            cover_image_url: collectionDetails.coverImage || undefined,
++            deployment_tx_hash: hash,
++            is_public: true,
++            is_verified: false,
++            status: 'deploying',
++            deployed_at: new Date().toISOString(),
++          });
++          console.log('✅ Collection saved to Supabase — will now show in Collections page and Dashboard.');
++        } catch (error) {
++          console.error('❌ Failed to save collection to Supabase (it will only show in this browser):', error);
+         }
+       } else {
+         console.warn('⚠️ Collection NOT saved - missing data:', {
+@@ -748,125 +771,76 @@ export default function CreatePage() {
+     const explorerBase = networkChainId === 84532
+       ? 'https://sepolia.basescan.org'
+       : 'https://basescan.org';
+-    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
+ 
+     try {
+-      // Get RoyalNFT source code with dependencies (without factory)
+-      const sourceCode = getRoyalNFTSourceCode();
+-
+-      // Encode constructor arguments for BaseScan verification
+-      // The RoyalNFT constructor takes CollectionParams struct
+-      let constructorArguments = '';
+-      if (collectionParams) {
+-        const { encodeFunctionData } = await import('viem');
+-        
+-        // Define the RoyalNFT constructor ABI
+-        const constructorAbi = {
+-          type: 'constructor',
+-          inputs: [
+-            {
+-              type: 'tuple',
+-              name: 'p',
+-              components: [
+-                { name: 'name', type: 'string' },
+-                { name: 'symbol', type: 'string' },
+-                { name: 'contractURI', type: 'string' },
+-                { name: 'baseURI', type: 'string' },
+-                { name: 'unrevealedURI', type: 'string' },
+-                { name: 'maxSupply', type: 'uint256' },
+-                { name: 'mintPrice', type: 'uint256' },
+-                { name: 'maxMintPerWallet', type: 'uint256' },
+-                { name: 'mintStart', type: 'uint64' },
+-                { name: 'mintEnd', type: 'uint64' },
+-                { name: 'revealTime', type: 'uint64' },
+-                { name: 'royaltyReceiver', type: 'address' },
+-                { name: 'royaltyBps', type: 'uint96' },
+-                { name: 'allowlistRoot', type: 'bytes32' },
+-              ],
+-            },
+-          ],
+-        } as const;
+-
+-        const encoded = encodeFunctionData({
+-          abi: [constructorAbi],
+-          functionName: 'constructor',
+-          args: [
+-            {
+-              name: collectionParams.name,
+-              symbol: collectionParams.symbol,
+-              contractURI: collectionParams.contractURI,
+-              baseURI: collectionParams.baseURI,
+-              unrevealedURI: collectionParams.unrevealedURI,
+-              maxSupply: collectionParams.maxSupply,
+-              mintPrice: collectionParams.mintPrice,
+-              maxMintPerWallet: collectionParams.maxMintPerWallet,
+-              mintStart: collectionParams.mintStart,
+-              mintEnd: collectionParams.mintEnd,
+-              revealTime: collectionParams.revealTime,
+-              royaltyReceiver: collectionParams.royaltyReceiver,
+-              royaltyBps: collectionParams.royaltyBps,
+-              allowlistRoot: collectionParams.allowlistRoot,
+-            },
+-          ],
+-        });
+-
+-        constructorArguments = encoded.slice(2); // Remove 0x prefix for BaseScan
+-      }
+-
+-      // Submit verification request to BaseScan
+-      const verifyResponse = await fetch(`${explorerBase}/api`, {
++      // Constructor-arg encoding and the actual BaseScan/Etherscan submission now
++      // happen server-side in /api/verify-contract, which keeps the API key off
++      // the client and uses the correct Etherscan V2 endpoint + encoding.
++      const submitResponse = await fetch('/api/verify-contract', {
+         method: 'POST',
+-        headers: {
+-          'Content-Type': 'application/x-www-form-urlencoded',
+-        },
+-        body: new URLSearchParams({
+-          module: 'contract',
+-          action: 'verifysourcecode',
+-          apikey: apiKey,
+-          contractaddress: contractAddr,
+-          sourceCode: sourceCode,
+-          codeformat: 'solidity-single-file',
+-          contractname: ROYAL_NFT_CONTRACT_NAME,
+-          compilerversion: COMPILER_VERSION,
+-          optimizationUsed: '0',
+-          runs: '200',
+-          constructorArguements: constructorArguments,
+-          licenseType: '3',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({
++          contractAddress: contractAddr,
++          networkChainId,
++          collectionParams: collectionParams
++            ? {
++                ...collectionParams,
++                maxSupply: collectionParams.maxSupply.toString(),
++                mintPrice: collectionParams.mintPrice.toString(),
++                maxMintPerWallet: collectionParams.maxMintPerWallet.toString(),
++                mintStart: collectionParams.mintStart.toString(),
++                mintEnd: collectionParams.mintEnd.toString(),
++                revealTime: collectionParams.revealTime.toString(),
++                royaltyBps: collectionParams.royaltyBps.toString(),
++              }
++            : undefined,
+         }),
+       });
+ 
+-      const verifyData = await verifyResponse.json();
++      const submitData = await submitResponse.json();
+ 
+-      if (verifyData.status === '1') {
+-        // Verification submitted successfully, now check status
+-        const maxPolls = 20;
+-        let pollCount = 0;
+-        let verified = false;
++      if (!submitResponse.ok || !submitData.success) {
++        console.warn('Verification submission failed:', submitData.error);
++        setDeployStatus('deployed');
++        setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
++        return;
++      }
+ 
+-        while (pollCount < maxPolls && !verified) {
+-          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
++      // Poll our own status-check route until BaseScan finishes verifying
++      const maxPolls = 20;
++      let pollCount = 0;
++      let verified = false;
+ 
+-          const statusResponse = await fetch(
+-            `${explorerBase}/api?module=contract&action=getsourcecode&address=${contractAddr}&apikey=${apiKey}`
+-          );
+-          const statusData = await statusResponse.json();
++      while (pollCount < maxPolls && !verified) {
++        await new Promise((resolve) => setTimeout(resolve, 5000));
+ 
+-          if (statusData.status === '1' && statusData.result[0]?.SourceCode) {
+-            verified = true;
+-            setDeployStatus('verified');
+-            setVerificationUrl(`${explorerBase}/address/${contractAddr}#code`);
++        const statusResponse = await fetch(
++          `/api/verify-contract?contractAddress=${contractAddr}&networkChainId=${networkChainId}`
++        );
++        const statusData = await statusResponse.json();
++
++        if (statusData.verified) {
++          verified = true;
++          setDeployStatus('verified');
++          setVerificationUrl(`${explorerBase}/address/${contractAddr}#code`);
++
++          try {
++            await updateCollectionByAddress(contractAddr, {
++              is_verified: true,
++              status: 'live',
++              verification_tx_hash: txHash,
++              verified_at: new Date().toISOString(),
++            });
++          } catch (e) {
++            console.error('Failed to update verification status in Supabase:', e);
+           }
+-
+-          pollCount++;
+         }
+ 
+-        if (!verified) {
+-          console.warn('Verification pending, user can check manually');
+-          setDeployStatus('deployed');
+-          setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
+-        }
+-      } else {
+-        console.warn('Verification submission failed:', verifyData.message);
++        pollCount++;
++      }
++
++      if (!verified) {
++        console.warn('Verification pending, user can check manually');
+         setDeployStatus('deployed');
+         setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
+       }
+diff --git a/lib/supabase.ts b/lib/supabase.ts
+index 91b5a5d..6b388fe 100644
+--- a/lib/supabase.ts
++++ b/lib/supabase.ts
+@@ -42,6 +42,14 @@ export async function createUser(walletAddress: string, userData?: Partial<{
+   return data;
+ }
+ 
++// Get-or-create a user row for a wallet address. Needed because `collections.creator_id`
++// is a foreign key into `users.id`, not the raw wallet address.
++export async function upsertUser(walletAddress: string) {
++  const existing = await getUser(walletAddress);
++  if (existing) return existing;
++  return createUser(walletAddress);
++}
++
+ export async function updateUser(walletAddress: string, updates: Partial<{
+   username: string;
+   bio: string;
+@@ -131,19 +139,26 @@ export async function getCollectionByAddress(contractAddress: string) {
+ 
+ export async function createCollection(collection: {
+   creator_id: string;
++  contract_address?: string;
+   name: string;
+   symbol: string;
+   description?: string;
+   max_supply: number;
+   mint_price_eth: number;
+-  mint_price_wei_wei: string;
++  mint_price_wei: string;
+   royalty_percentage: number;
+   royalty_recipient?: string;
+   banner_url?: string;
++  cover_image_url?: string;
+   logo_url?: string;
+   external_url?: string;
+   twitter_url?: string;
+   discord_url?: string;
++  deployment_tx_hash?: string;
++  is_public?: boolean;
++  is_verified?: boolean;
++  status?: string;
++  deployed_at?: string;
+ }) {
+   const { data, error } = await supabase
+     .from('collections')
+@@ -155,6 +170,31 @@ export async function createCollection(collection: {
+   return data;
+ }
+ 
++export async function updateCollectionByAddress(contractAddress: string, updates: Partial<{
++  description: string;
++  banner_url: string;
++  cover_image_url: string;
++  logo_url: string;
++  external_url: string;
++  twitter_url: string;
++  discord_url: string;
++  is_verified: boolean;
++  is_public: boolean;
++  status: string;
++  verification_tx_hash: string;
++  verified_at: string;
++}>) {
++  const { data, error } = await supabase
++    .from('collections')
++    .update(updates)
++    .eq('contract_address', contractAddress)
++    .select()
++    .single();
++
++  if (error) throw error;
++  return data;
++}
++
+ // Layer and Trait functions
+ export async function getLayers(collectionId: string) {
+   const { data, error } = await supabase

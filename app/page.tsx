@@ -39,11 +39,6 @@ const FEATURES = [
     description: 'Track your collection performance with real-time minting data and holder analytics.',
   },
   {
-    icon: Users,
-    title: 'Referral System',
-    description: 'Grow your community with built-in referral tracking and reward distribution.',
-  },
-  {
     icon: Crown,
     title: 'Royalty Management',
     description: 'Set and enforce secondary royalties. Your art, your earnings, forever.',

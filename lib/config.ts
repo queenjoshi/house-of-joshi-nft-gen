@@ -27,6 +27,6 @@ export const APP_CONFIG = {
     email: 'support@thehouseofjoshi.com',
     twitter: 'https://twitter.com/thehouseofjoshi',
     discord: 'https://discord.com/invite/uH9zVeAwDu',
-    instagram: 'https://instagram.com/thehouseofjoshi_',
+    instagram: 'https://www.instagram.com/thehouseofjoshi',
   },
 };
