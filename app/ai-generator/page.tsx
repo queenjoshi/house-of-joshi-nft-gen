@@ -22,12 +22,12 @@ import Link from 'next/link';
 
 const defaultLayerPrompts: AILayerPrompt[] = [
   { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment only, no character or foreground subject', traitCount: 1 },
-  { id: 'body', name: 'Body', prompt: 'body base only: torso, shoulders, arms and neck, no head, no face, no hair, no clothes', traitCount: 1 },
-  { id: 'face', name: 'Face', prompt: 'face/head skin shape only, no eyes, no mouth, no hair, no body', traitCount: 1 },
-  { id: 'eyes', name: 'Eyes', prompt: 'eyes and eyebrows only, no face skin, no mouth, no hair, no body', traitCount: 1 },
-  { id: 'mouth', name: 'Mouth', prompt: 'mouth and lips only, no face skin, no eyes, no hair, no body', traitCount: 1 },
-  { id: 'hair', name: 'Hair', prompt: 'hair or hairstyle only, no face, no eyes, no mouth, no body', traitCount: 1 },
-  { id: 'dress', name: 'Dress', prompt: 'clothing, armor or dress only, no face, no hair, no background', traitCount: 1 },
+  { id: 'body', name: 'Body', prompt: 'body base only: torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes', traitCount: 1 },
+  { id: 'face', name: 'Face', prompt: 'face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body', traitCount: 1 },
+  { id: 'eyes', name: 'Eyes', prompt: 'eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body', traitCount: 1 },
+  { id: 'mouth', name: 'Mouth', prompt: 'mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body', traitCount: 1 },
+  { id: 'hair', name: 'Hair', prompt: 'hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body', traitCount: 1 },
+  { id: 'dress', name: 'Dress', prompt: 'clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background', traitCount: 1 },
 ];
 
 function createLayerPrompt(): AILayerPrompt {
@@ -49,12 +49,12 @@ function createSuggestedLayerPrompts(mainPrompt: string): AILayerPrompt[] {
 
   return [
     { id: 'background', name: 'Background', prompt: `${stylePrefix}; environment only, no character or foreground subject`, traitCount: 1 },
-    { id: 'body', name: 'Body', prompt: `${stylePrefix}; body base only, torso, shoulders, arms and neck, no head, no face, no hair, no clothes`, traitCount: 1 },
-    { id: 'face', name: 'Face', prompt: `${stylePrefix}; face/head skin shape only, no eyes, no mouth, no hair, no body`, traitCount: 1 },
-    { id: 'eyes', name: 'Eyes', prompt: `${stylePrefix}; eyes and eyebrows only, no face skin, no mouth, no hair, no body`, traitCount: 1 },
-    { id: 'mouth', name: 'Mouth', prompt: `${stylePrefix}; mouth and lips only, no face skin, no eyes, no hair, no body`, traitCount: 1 },
-    { id: 'hair', name: 'Hair', prompt: `${stylePrefix}; hair or hairstyle only, no face, no eyes, no mouth, no body`, traitCount: 1 },
-    { id: 'dress', name: 'Dress', prompt: `${stylePrefix}; clothing, armor or dress only, no face, no hair, no background`, traitCount: 1 },
+    { id: 'body', name: 'Body', prompt: `${stylePrefix}; body base only, torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes`, traitCount: 1 },
+    { id: 'face', name: 'Face', prompt: `${stylePrefix}; face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body`, traitCount: 1 },
+    { id: 'eyes', name: 'Eyes', prompt: `${stylePrefix}; eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body`, traitCount: 1 },
+    { id: 'mouth', name: 'Mouth', prompt: `${stylePrefix}; mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body`, traitCount: 1 },
+    { id: 'hair', name: 'Hair', prompt: `${stylePrefix}; hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body`, traitCount: 1 },
+    { id: 'dress', name: 'Dress', prompt: `${stylePrefix}; clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background`, traitCount: 1 },
   ];
 }
 
@@ -214,7 +214,7 @@ export default function AIGeneratorPage() {
     setLayerPrompts(createSuggestedLayerPrompts(concept));
     setCoverPrompt(createCoverPrompt(concept));
     setBannerPrompt(createBannerPrompt(concept));
-    setStylePrompt(`Consistent ${concept} NFT collection style, same front-facing alignment, same lighting, same linework`);
+    setStylePrompt(`Consistent ${concept} NFT collection style, fixed centered bust portrait rig, same head box, same eye anchors, same mouth anchor, same torso silhouette, same lighting, same linework`);
   }, [prompt, hasEditedSuggestions]);
 
   useEffect(() => {
@@ -251,7 +251,7 @@ export default function AIGeneratorPage() {
     setLayerPrompts(createSuggestedLayerPrompts(concept));
     setCoverPrompt(createCoverPrompt(concept));
     setBannerPrompt(createBannerPrompt(concept));
-    setStylePrompt(concept ? `Consistent ${concept} NFT collection style, same front-facing alignment, same lighting, same linework` : '');
+    setStylePrompt(concept ? `Consistent ${concept} NFT collection style, fixed centered bust portrait rig, same head box, same eye anchors, same mouth anchor, same torso silhouette, same lighting, same linework` : '');
     setHasEditedSuggestions(false);
   };
 
@@ -728,7 +728,7 @@ export default function AIGeneratorPage() {
                     <Label htmlFor="stylePrompt">Style Lock</Label>
                     <Textarea
                       id="stylePrompt"
-                      placeholder="Same front-facing alignment, same lighting, same outline thickness, same color palette..."
+                      placeholder="Fixed centered bust rig, same head box, same eye anchors, same mouth anchor, same torso silhouette..."
                       value={stylePrompt}
                       onChange={(e) => {
                         setHasEditedSuggestions(true);

@@ -81,6 +81,20 @@ const defaultLayers: RequestedLayer[] = [
   },
 ];
 
+const characterRigBlueprint = [
+  "Character rig blueprint for every stackable layer",
+  "Square 1024x1024 canvas, front-facing bust portrait, no perspective tilt",
+  "Vertical centerline fixed at x=512",
+  "Head bounding box x=326-698 y=170-560",
+  "Eyes anchor y=330, left eye center x=438, right eye center x=586",
+  "Mouth anchor center x=512 y=455",
+  "Hair occupies x=285-739 y=95-385 and follows the head bounding box",
+  "Neck occupies x=456-568 y=545-660",
+  "Torso/body occupies x=260-764 y=610-980",
+  "Dress/outfit occupies x=235-789 y=575-1000 and must wrap the torso/body anchor",
+  "All non-background layers must use these exact anchors and proportions so the PNGs fit perfectly when stacked",
+].join(". ");
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -97,7 +111,8 @@ function getLayerIsolationInstructions(layerName: string): string {
   const normalizedName = layerName.toLowerCase();
   const sharedLayerRules = [
     "Create a single isolated NFT generator layer asset, not a full completed character",
-    "Use the same centered front-facing alignment and scale so this layer can stack with the other layers",
+    characterRigBlueprint,
+    "Use the exact same centered front-facing alignment, pose, scale, and anchor positions so this layer can stack with the other layers",
     "Keep the canvas square",
     "Place only the requested layer object on a clean pure white background for background removal",
     "Leave all unrelated parts empty/pure white so they can become transparent",
@@ -115,7 +130,8 @@ function getLayerIsolationInstructions(layerName: string): string {
   if (normalizedName.includes("body")) {
     return [
       ...sharedLayerRules,
-      "Generate only the character body base, shoulders, arms, torso, and neck if needed",
+      "Generate only the character body base, shoulders, arms, torso, and neck using the rig anchors",
+      "Body must define the base silhouette that face, hair, dress, eyes, and mouth will fit",
       "Do not include head, face, eyes, mouth, hair, clothes, dress, accessories, or background",
     ].join(". ");
   }
@@ -123,7 +139,8 @@ function getLayerIsolationInstructions(layerName: string): string {
   if (normalizedName.includes("face") || normalizedName.includes("head")) {
     return [
       ...sharedLayerRules,
-      "Generate only the face/head skin shape and expression base",
+      "Generate only the face/head skin shape and expression base inside the exact head bounding box",
+      "Face must align to the neck and body silhouette anchors",
       "Do not include eyes, eyebrows, mouth, teeth, hair, hat, neck, body, clothing, accessories, or background",
     ].join(". ");
   }
@@ -131,7 +148,8 @@ function getLayerIsolationInstructions(layerName: string): string {
   if (normalizedName.includes("eye") || normalizedName.includes("brow")) {
     return [
       ...sharedLayerRules,
-      "Generate only eyes and eyebrows",
+      "Generate only eyes and eyebrows at the exact eye anchors",
+      "Eyes must fit inside the face/head bounding box and match the face perspective",
       "Do not include face skin, mouth, nose, hair, head outline, body, clothing, accessories, or background",
     ].join(". ");
   }
@@ -139,7 +157,8 @@ function getLayerIsolationInstructions(layerName: string): string {
   if (normalizedName.includes("mouth") || normalizedName.includes("lip")) {
     return [
       ...sharedLayerRules,
-      "Generate only mouth, lips, teeth, tongue, or facial expression mouth detail",
+      "Generate only mouth, lips, teeth, tongue, or facial expression mouth detail at the exact mouth anchor",
+      "Mouth must fit the face/head bounding box and match the face perspective",
       "Do not include eyes, face skin, nose, hair, head outline, body, clothing, accessories, or background",
     ].join(". ");
   }
@@ -147,7 +166,8 @@ function getLayerIsolationInstructions(layerName: string): string {
   if (normalizedName.includes("hair")) {
     return [
       ...sharedLayerRules,
-      "Generate only hair or hairstyle",
+      "Generate only hair or hairstyle around the exact head bounding box",
+      "Hair must fit over the face/head shape without shifting the head size or centerline",
       "Do not include face, eyes, mouth, body, clothing, accessories, or background",
     ].join(". ");
   }
@@ -161,7 +181,8 @@ function getLayerIsolationInstructions(layerName: string): string {
   ) {
     return [
       ...sharedLayerRules,
-      "Generate only clothing, dress, outfit, armor, or wearable layer pieces",
+      "Generate only clothing, dress, outfit, armor, or wearable layer pieces around the torso/body anchors",
+      "Dress/outfit must fit the body silhouette and neck anchor exactly",
       "Do not include face, eyes, mouth, hair, full body skin, background, or scenery",
     ].join(". ");
   }
@@ -226,6 +247,7 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
         prompt: [
           `Collection concept and art style: ${prompt}`,
           lockedStyle,
+          characterRigBlueprint,
           `Layer to generate: ${name}`,
           `User direction for this layer: ${layerPrompt}`,
           getLayerIsolationInstructions(name),
@@ -567,6 +589,7 @@ serve(async (req) => {
     const previewLayers = [];
     let uploadedCoverImage: UploadedAsset | null = null;
     let uploadedBannerImage: UploadedAsset | null = null;
+    let bodyAlignmentReference = "";
 
     if (generateCollectionImages) {
       console.log("Generating collection cover and banner...");
@@ -589,7 +612,12 @@ serve(async (req) => {
       const traits = await Promise.all(
         Array.from({ length: layer.traitCount }, async (_item, traitIndex): Promise<GeneratedTrait> => {
           const variantNumber = traitIndex + 1;
-          const traitPrompt = `${layer.prompt} Variant ${variantNumber}. Distinct from the other variants while preserving the same layer alignment and NFT collection style.`;
+          const traitPrompt = [
+            layer.prompt,
+            bodyAlignmentReference,
+            `Variant ${variantNumber}`,
+            "Distinct from the other variants while preserving the same fixed rig, body shape anchors, layer alignment, and NFT collection style",
+          ].filter(Boolean).join(". ");
           const generatedImage = await generateImage(traitPrompt);
           const layerImage = layer.removeBackground
             ? await removeBackground(generatedImage, layer.name)
@@ -638,6 +666,14 @@ serve(async (req) => {
           cid: previewTrait.cid,
           zIndex: layer.order,
         });
+
+        if (layer.name.toLowerCase().includes("body")) {
+          bodyAlignmentReference = [
+            "Body base alignment reference is now locked from the generated body layer",
+            "All later face, eyes, mouth, hair, dress, and accessory layers must fit this same body silhouette",
+            "Keep the same neck width, shoulder width, torso centerline, head position, and layer scale as the body base",
+          ].join(". ");
+        }
       }
     }
 
