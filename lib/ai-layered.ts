@@ -41,6 +41,7 @@ export interface LayeredMetadata {
 }
 
 export interface AIGenerationRequest {
+  generationMode?: 'true-layered' | 'prompt-layers';
   prompt: string;
   stylePrompt?: string;
   coverPrompt?: string;
@@ -58,6 +59,7 @@ export interface AIGenerationRequest {
 
 export interface AIGenerationResponse {
   success: boolean;
+  generationMode?: 'true-layered' | 'prompt-layers';
   imageUrl?: string;
   imageCID?: string | null;
   coverImageUrl?: string;
@@ -209,6 +211,7 @@ export async function generateLayeredNFT(request: AIGenerationRequest): Promise<
 
     return {
       success: true,
+      generationMode: data.generationMode,
       imageUrl: ipfsToGatewayUrl(data.imageUrl || data.ipfsUrl),
       imageCID: data.imageCID || extractIpfsCID(data.imageUrl || data.ipfsUrl),
       coverImageUrl: ipfsToGatewayUrl(data.coverImageUrl),

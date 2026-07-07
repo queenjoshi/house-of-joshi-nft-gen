@@ -185,6 +185,7 @@ export default function AIGeneratorPage() {
   const saveAIDraft = useAIGenerationStore((state) => state.saveDraft);
   const savedDrafts = useAIGenerationStore((state) => state.savedDrafts);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMode, setGenerationMode] = useState<'true-layered' | 'prompt-layers'>('true-layered');
   const [prompt, setPrompt] = useState('');
   const [stylePrompt, setStylePrompt] = useState('');
   const [coverPrompt, setCoverPrompt] = useState('');
@@ -279,6 +280,7 @@ export default function AIGeneratorPage() {
     const previewImage = result.coverImageUrl || result.imageUrl || generatorLayers[0]?.traits[0]?.preview || '';
 
     const draft: AIGeneratedCollectionDraft = {
+      generationMode,
       prompt,
       stylePrompt,
       coverPrompt,
@@ -336,6 +338,7 @@ export default function AIGeneratorPage() {
     if (!draft?.generatorLayers?.length) return;
 
     setPrompt(draft.prompt);
+    setGenerationMode(draft.generationMode || 'true-layered');
     setStylePrompt(draft.stylePrompt || '');
     setCoverPrompt(draft.coverPrompt || '');
     setBannerPrompt(draft.bannerPrompt || '');
@@ -423,6 +426,7 @@ export default function AIGeneratorPage() {
     try {
       const result = await generateLayeredNFT({
         prompt,
+        generationMode,
         stylePrompt,
         coverPrompt,
         bannerPrompt,
@@ -471,6 +475,7 @@ export default function AIGeneratorPage() {
     try {
       const result = await generateLayeredNFT({
         prompt,
+        generationMode,
         stylePrompt,
         generateCollectionImages: false,
         layerPrompts: [layer],
@@ -544,6 +549,7 @@ export default function AIGeneratorPage() {
     try {
       const result = await generateLayeredNFT({
         prompt,
+        generationMode,
         stylePrompt,
         generateCollectionImages: false,
         layerPrompts: [{ ...layer, traitCount: 1 }],
@@ -722,6 +728,28 @@ export default function AIGeneratorPage() {
                       rows={4}
                       className="royal-border"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-royal-500/30 p-2">
+                    <Button
+                      type="button"
+                      variant={generationMode === 'true-layered' ? 'default' : 'outline'}
+                      onClick={() => setGenerationMode('true-layered')}
+                      className={generationMode === 'true-layered' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'}
+                    >
+                      True Layer Kit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={generationMode === 'prompt-layers' ? 'default' : 'outline'}
+                      onClick={() => setGenerationMode('prompt-layers')}
+                      className={generationMode === 'prompt-layers' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'}
+                    >
+                      Prompt Layers
+                    </Button>
+                    <p className="sm:col-span-2 text-xs text-muted-foreground px-1">
+                      True Layer Kit uses OpenAI image references so every trait follows one base body rig. Prompt Layers keeps the older provider flow.
+                    </p>
                   </div>
 
                   <div className="space-y-2">

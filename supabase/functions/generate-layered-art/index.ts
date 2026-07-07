@@ -48,6 +48,8 @@ type RequestedLayer = {
   traitCount?: number;
 };
 
+type GenerationMode = "true-layered" | "prompt-layers";
+
 const defaultLayers: RequestedLayer[] = [
   {
     id: "background",
@@ -445,6 +447,74 @@ async function generateImageWithOpenAI(prompt: string, aspectRatio = "1:1"): Pro
   return base64ToArrayBuffer(image);
 }
 
+async function editImageWithOpenAI(referenceImage: ArrayBuffer, prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
+  const openAIKey = requireSecret(OPENAI_API_KEY, "OPENAI_API_KEY");
+  const formData = new FormData();
+  formData.append("model", OPENAI_IMAGE_MODEL);
+  formData.append("prompt", prompt);
+  formData.append("size", openAIImageSizeForAspectRatio(aspectRatio));
+  formData.append("quality", OPENAI_IMAGE_QUALITY);
+  formData.append("image[]", new Blob([referenceImage], { type: "image/png" }), "base-character-reference.png");
+
+  const response = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${openAIKey}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI image edit error:", errorText);
+    throw new Error(`OpenAI image edit failed: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const image = data.data?.[0]?.b64_json;
+
+  if (!image || typeof image !== "string") {
+    console.error("Unexpected OpenAI image edit response:", JSON.stringify(data));
+    throw new Error("OpenAI image edit failed: response did not include image data");
+  }
+
+  return base64ToArrayBuffer(image);
+}
+
+function buildBaseCharacterReferencePrompt(prompt: string, stylePrompt?: string): string {
+  return [
+    `Collection concept: ${prompt}`,
+    stylePrompt ? `Locked style: ${stylePrompt}` : "Locked style: consistent NFT collection art",
+    "Generate one complete front-facing bust character reference for an NFT layered generator",
+    characterRigBlueprint,
+    "Include the full base body, head, face, eyes, mouth, hair placeholder silhouette, and outfit placeholder so every later layer can align to this exact reference",
+    "Neutral expression, centered, clean silhouette, no text, no logo, no watermark, no frame",
+  ].join(". ");
+}
+
+function buildTrueLayerEditPrompt(layer: GeneratedLayer, variantNumber: number): string {
+  const isBackground = !layer.removeBackground;
+
+  if (isBackground) {
+    return [
+      layer.prompt,
+      `Variant ${variantNumber}`,
+      "Background layer only, no character and no foreground subject",
+    ].join(". ");
+  }
+
+  return [
+    "Use the provided base character image only as an alignment reference",
+    "Preserve the exact pose, centerline, canvas size, body silhouette anchors, head box, eye anchors, mouth anchor, neck, shoulders, and torso scale from the reference",
+    layer.prompt,
+    `Variant ${variantNumber}`,
+    "Output only this requested layer asset on a pure white background for background removal",
+    "Do not output a completed character",
+    "Do not include any unrelated parts from the reference image",
+    "No shadows, scenery, text, logo, watermark, border, or frame",
+  ].join(". ");
+}
+
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -603,6 +673,7 @@ serve(async (req) => {
       coverPrompt,
       bannerPrompt,
       stylePrompt,
+      generationMode = "true-layered",
       generateCollectionImages = true,
       layerPrompts,
       traitsPerLayer,
@@ -635,12 +706,28 @@ serve(async (req) => {
 
     console.log("Starting layered NFT generation for:", prompt);
 
+    const resolvedGenerationMode: GenerationMode = generationMode === "prompt-layers" ? "prompt-layers" : "true-layered";
+
+    if (resolvedGenerationMode === "true-layered" && AI_PROVIDER !== "openai") {
+      throw new Error(
+        "True Layer Kit mode requires AI_PROVIDER=openai because it uses OpenAI image edits with a shared character reference. Set AI_PROVIDER to openai and OPENAI_API_KEY in Supabase secrets."
+      );
+    }
+
     const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer, stylePrompt);
     const generatorLayers = [];
     const previewLayers = [];
     let uploadedCoverImage: UploadedAsset | null = null;
     let uploadedBannerImage: UploadedAsset | null = null;
-    let bodyAlignmentReference = "";
+    let baseCharacterReference: ArrayBuffer | null = null;
+
+    if (resolvedGenerationMode === "true-layered") {
+      console.log("Generating OpenAI base character reference for true layer alignment...");
+      baseCharacterReference = await generateImageWithOpenAI(
+        buildBaseCharacterReferencePrompt(prompt, stylePrompt),
+        "1:1"
+      );
+    }
 
     if (generateCollectionImages) {
       console.log("Generating collection cover and banner...");
@@ -664,12 +751,19 @@ serve(async (req) => {
         Array.from({ length: layer.traitCount }, async (_item, traitIndex): Promise<GeneratedTrait> => {
           const variantNumber = traitIndex + 1;
           const traitPrompt = [
-            layer.prompt,
-            bodyAlignmentReference,
-            `Variant ${variantNumber}`,
-            "Distinct from the other variants while preserving the same fixed rig, body shape anchors, layer alignment, and NFT collection style",
+            resolvedGenerationMode === "true-layered"
+              ? buildTrueLayerEditPrompt(layer, variantNumber)
+              : layer.prompt,
+            resolvedGenerationMode === "prompt-layers"
+              ? `Variant ${variantNumber}`
+              : "",
+            resolvedGenerationMode === "prompt-layers"
+              ? "Distinct from the other variants while preserving the same fixed rig, body shape anchors, layer alignment, and NFT collection style"
+              : "Distinct from the other variants while preserving the same reference alignment and NFT collection style",
           ].filter(Boolean).join(". ");
-          const generatedImage = await generateImage(traitPrompt);
+          const generatedImage = resolvedGenerationMode === "true-layered" && layer.removeBackground && baseCharacterReference
+            ? await editImageWithOpenAI(baseCharacterReference, traitPrompt)
+            : await generateImage(traitPrompt);
           const layerImage = layer.removeBackground
             ? await removeBackground(generatedImage, layer.name)
             : generatedImage;
@@ -717,14 +811,6 @@ serve(async (req) => {
           cid: previewTrait.cid,
           zIndex: layer.order,
         });
-
-        if (layer.name.toLowerCase().includes("body")) {
-          bodyAlignmentReference = [
-            "Body base alignment reference is now locked from the generated body layer",
-            "All later face, eyes, mouth, hair, dress, and accessory layers must fit this same body silhouette",
-            "Keep the same neck width, shoulder width, torso centerline, head position, and layer scale as the body base",
-          ].join(". ");
-        }
       }
     }
 
@@ -734,6 +820,7 @@ serve(async (req) => {
       description: description || `AI-generated layered NFT: ${prompt}`,
       image: uploadedCoverImage?.url || previewLayers[0]?.url,
       banner_image: uploadedBannerImage?.url,
+      generationMode: resolvedGenerationMode,
       composition: {
         layers: previewLayers.map((layer) => ({
           id: layer.id,
@@ -766,6 +853,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        generationMode: resolvedGenerationMode,
         imageUrl: uploadedCoverImage?.url || previewLayer?.url,
         imageCID: uploadedCoverImage?.cid || previewLayer?.cid,
         coverImageUrl: uploadedCoverImage?.url,

@@ -119,6 +119,7 @@ export const useGeneratorStore = create<GeneratorState>()((set, get) => ({
 
 // AI Generated Collection Draft Store
 export interface AIGeneratedCollectionDraft {
+  generationMode?: 'true-layered' | 'prompt-layers';
   prompt: string;
   stylePrompt?: string;
   coverPrompt?: string;
