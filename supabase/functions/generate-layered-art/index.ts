@@ -94,7 +94,8 @@ function getLayerIsolationInstructions(layerName: string): string {
     "Create a single isolated NFT generator layer asset, not a full completed character",
     "Use the same centered front-facing alignment and scale so this layer can stack with the other layers",
     "Keep the canvas square",
-    "Leave all unrelated parts empty/plain so background removal can make them transparent",
+    "Place only the requested layer object on a clean pure white background for background removal",
+    "Leave all unrelated parts empty/pure white so they can become transparent",
     "Do not include shadows, scenery, text, logos, frames, watermarks, or extra props unless this exact layer asks for them",
   ];
 
@@ -219,7 +220,10 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
           `Layer to generate: ${name}`,
           `User direction for this layer: ${layerPrompt}`,
           getLayerIsolationInstructions(name),
-          "High-detail digital collectible art, crisp PNG-ready layer, consistent style across all traits",
+          shouldRemoveBackground(name)
+            ? "Output must look like a clean isolated cutout on pure white, ready to remove the background into a transparent PNG"
+            : "Output must be a complete background artwork with no transparent cutout subject",
+          "High-detail digital collectible art, crisp NFT generator layer, consistent style across all traits",
         ].join(". "),
         order: index,
         removeBackground: shouldRemoveBackground(name),
@@ -327,10 +331,11 @@ async function generateImageWithCloudflare(prompt: string): Promise<ArrayBuffer>
   return base64ToArrayBuffer(base64);
 }
 
-async function removeBackground(imageBuffer: ArrayBuffer): Promise<ArrayBuffer> {
+async function removeBackground(imageBuffer: ArrayBuffer, layerName: string): Promise<ArrayBuffer> {
   if (!REMOVAL_API_KEY) {
-    console.warn("REMOVAL_API_KEY not set; using original image for transparent layer fallback");
-    return imageBuffer;
+    throw new Error(
+      `Missing Edge Function secret: REMOVAL_API_KEY. ${layerName} must be converted to a transparent PNG layer before upload.`
+    );
   }
 
   const formData = new FormData();
@@ -348,8 +353,7 @@ async function removeBackground(imageBuffer: ArrayBuffer): Promise<ArrayBuffer> 
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Background removal error:", errorText);
-    console.log("Using original image as fallback");
-    return imageBuffer;
+    throw new Error(`Background removal failed for ${layerName}: ${errorText}`);
   }
 
   return await response.arrayBuffer();
@@ -488,7 +492,7 @@ serve(async (req) => {
           const traitPrompt = `${layer.prompt} Variant ${variantNumber}. Distinct from the other variants while preserving the same layer alignment and NFT collection style.`;
           const generatedImage = await generateImage(traitPrompt);
           const layerImage = layer.removeBackground
-            ? await removeBackground(generatedImage)
+            ? await removeBackground(generatedImage, layer.name)
             : generatedImage;
           const uploadedLayer = await uploadFileToPinata(
             layerImage,
