@@ -31,6 +31,11 @@ type GeneratedTrait = {
   rarity: number;
 };
 
+type UploadedAsset = {
+  cid: string;
+  url: string;
+};
+
 type RequestedLayer = {
   id?: string;
   name?: string;
@@ -170,6 +175,32 @@ function getLayerIsolationInstructions(layerName: string): string {
   ].join(". ");
 }
 
+function buildCollectionImagePrompt(
+  prompt: string,
+  assetType: "cover" | "banner",
+  userPrompt?: string,
+): string {
+  if (assetType === "banner") {
+    return [
+      `Collection concept and art style: ${prompt}`,
+      `User banner direction: ${userPrompt || "cinematic marketplace banner for the NFT collection"}`,
+      "Generate a wide collection banner image for an NFT drop page",
+      "Use a strong horizontal composition with the main subject or emblem centered and safe space near the edges",
+      "Do not include readable text, logos, UI, frames, watermarks, or marketplace screenshots",
+      "High-detail digital collectible art, polished hero banner style",
+    ].join(". ");
+  }
+
+  return [
+    `Collection concept and art style: ${prompt}`,
+    `User cover direction: ${userPrompt || "iconic square cover image for the NFT collection"}`,
+    "Generate a square collection cover image that represents the whole NFT drop",
+    "This is a complete cover artwork, not a transparent layer",
+    "Do not include readable text, logos, UI, frames, watermarks, or marketplace screenshots",
+    "High-detail digital collectible art, polished marketplace cover style",
+  ].join(". ");
+}
+
 function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], traitsPerLayer = 3): GeneratedLayer[] {
   const sourceLayers = requestedLayers?.length ? requestedLayers : defaultLayers;
 
@@ -205,20 +236,20 @@ function requireSecret(value: string | undefined, name: string): string {
   return value;
 }
 
-async function generateImage(prompt: string): Promise<ArrayBuffer> {
+async function generateImage(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
   if (AI_PROVIDER === "cloudflare") {
     return generateImageWithCloudflare(prompt);
   }
 
-  return generateImageWithStability(prompt);
+  return generateImageWithStability(prompt, aspectRatio);
 }
 
-async function generateImageWithStability(prompt: string): Promise<ArrayBuffer> {
+async function generateImageWithStability(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
   const stabilityKey = requireSecret(STABILITY_API_KEY, "STABILITY_API_KEY");
   const formData = new FormData();
   formData.append("prompt", prompt);
   formData.append("output_format", "png");
-  formData.append("aspect_ratio", "1:1");
+  formData.append("aspect_ratio", aspectRatio);
   formData.append("model", "sd3-medium");
 
   const response = await fetch("https://api.stability.ai/v2beta/stable-image/generate/sd3", {
@@ -393,6 +424,9 @@ serve(async (req) => {
       collectionSymbol,
       description,
       dryRun,
+      coverPrompt,
+      bannerPrompt,
+      generateCollectionImages = true,
       layerPrompts,
       traitsPerLayer,
     } = await req.json();
@@ -427,6 +461,24 @@ serve(async (req) => {
     const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer);
     const generatorLayers = [];
     const previewLayers = [];
+    let uploadedCoverImage: UploadedAsset | null = null;
+    let uploadedBannerImage: UploadedAsset | null = null;
+
+    if (generateCollectionImages) {
+      console.log("Generating collection cover and banner...");
+      const [coverImage, bannerImage] = await Promise.all([
+        generateImage(buildCollectionImagePrompt(prompt, "cover", coverPrompt), "1:1"),
+        generateImage(buildCollectionImagePrompt(prompt, "banner", bannerPrompt), "16:9"),
+      ]);
+
+      const [coverUpload, bannerUpload] = await Promise.all([
+        uploadFileToPinata(coverImage, "collection-cover.png"),
+        uploadFileToPinata(bannerImage, "collection-banner.png"),
+      ]);
+
+      uploadedCoverImage = coverUpload;
+      uploadedBannerImage = bannerUpload;
+    }
 
     for (const layer of layerPlan) {
       console.log(`Generating ${layer.name} layer with ${layer.traitCount} traits...`);
@@ -479,7 +531,8 @@ serve(async (req) => {
       name: `${collectionName} AI Layer Kit`,
       symbol: collectionSymbol,
       description: description || `AI-generated layered NFT: ${prompt}`,
-      image: previewLayers[0]?.url,
+      image: uploadedCoverImage?.url || previewLayers[0]?.url,
+      banner_image: uploadedBannerImage?.url,
       composition: {
         layers: previewLayers.map((layer) => ({
           id: layer.id,
@@ -510,8 +563,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        imageUrl: previewLayer?.url,
-        imageCID: previewLayer?.cid,
+        imageUrl: uploadedCoverImage?.url || previewLayer?.url,
+        imageCID: uploadedCoverImage?.cid || previewLayer?.cid,
+        coverImageUrl: uploadedCoverImage?.url,
+        coverImageCID: uploadedCoverImage?.cid,
+        bannerImageUrl: uploadedBannerImage?.url,
+        bannerImageCID: uploadedBannerImage?.cid,
         metadataUrl: uploadedMetadata.url,
         metadataCID: uploadedMetadata.cid,
         ipfsUrl: previewLayer?.url,

@@ -40,6 +40,9 @@ export interface LayeredMetadata {
 
 export interface AIGenerationRequest {
   prompt: string;
+  coverPrompt?: string;
+  bannerPrompt?: string;
+  generateCollectionImages?: boolean;
   layerPrompts?: AILayerPrompt[];
   traitsPerLayer?: number;
   collectionName: string;
@@ -54,6 +57,10 @@ export interface AIGenerationResponse {
   success: boolean;
   imageUrl?: string;
   imageCID?: string | null;
+  coverImageUrl?: string;
+  coverImageCID?: string | null;
+  bannerImageUrl?: string;
+  bannerImageCID?: string | null;
   metadataUrl?: string;
   metadataCID?: string | null;
   layers?: Layer[];
@@ -201,6 +208,10 @@ export async function generateLayeredNFT(request: AIGenerationRequest): Promise<
       success: true,
       imageUrl: ipfsToGatewayUrl(data.imageUrl || data.ipfsUrl),
       imageCID: data.imageCID || extractIpfsCID(data.imageUrl || data.ipfsUrl),
+      coverImageUrl: ipfsToGatewayUrl(data.coverImageUrl),
+      coverImageCID: data.coverImageCID || extractIpfsCID(data.coverImageUrl),
+      bannerImageUrl: ipfsToGatewayUrl(data.bannerImageUrl),
+      bannerImageCID: data.bannerImageCID || extractIpfsCID(data.bannerImageUrl),
       metadataUrl: data.metadataUrl,
       metadataCID: data.metadataCID || extractIpfsCID(data.metadataUrl),
       layers: Array.isArray(data.layers)

@@ -259,8 +259,8 @@ export default function CreatePage() {
       maxSupply: aiDraft.maxSupply,
       mintPrice: aiDraft.mintPrice,
       royaltyPercentage: aiDraft.royaltyPercentage,
-      bannerImage: null,
-      coverImage: aiDraft.imageUrl || aiDraft.generatorLayers[0]?.traits[0]?.preview || null,
+      bannerImage: aiDraft.bannerImageUrl || null,
+      coverImage: aiDraft.coverImageUrl || aiDraft.imageUrl || aiDraft.generatorLayers[0]?.traits[0]?.preview || null,
     });
 
     setLayers(

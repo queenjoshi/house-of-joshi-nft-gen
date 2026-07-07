@@ -127,6 +127,8 @@ export interface AIGeneratedCollectionDraft {
   mintPrice: string;
   royaltyPercentage: number;
   imageUrl: string;
+  coverImageUrl?: string;
+  bannerImageUrl?: string;
   metadataUrl: string;
   imageCID: string | null;
   metadataCID: string | null;
