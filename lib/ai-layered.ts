@@ -27,9 +27,31 @@ export interface AIGenerationRequest {
 
 export interface AIGenerationResponse {
   success: boolean;
+  imageUrl?: string;
+  imageCID?: string | null;
   metadataUrl?: string;
-  ipfsUrl?: string;
+  metadataCID?: string | null;
   error?: string;
+}
+
+export function ipfsToGatewayUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('ipfs://')) {
+    return `https://gateway.pinata.cloud/ipfs/${url.replace('ipfs://', '')}`;
+  }
+  return url;
+}
+
+function extractIpfsCID(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '').split('/')[0] || null;
+  }
+
+  const marker = '/ipfs/';
+  const markerIndex = url.indexOf(marker);
+  if (markerIndex === -1) return null;
+  return url.slice(markerIndex + marker.length).split('/')[0] || null;
 }
 
 /**
@@ -53,7 +75,7 @@ export async function testEdgeFunctionConnectivity(): Promise<{ success: boolean
           'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt: 'test' }),
+        body: JSON.stringify({ prompt: 'connectivity-test', dryRun: true }),
         signal: controller.signal,
       }
     );
@@ -140,8 +162,10 @@ export async function generateLayeredNFT(request: AIGenerationRequest): Promise<
 
     return {
       success: true,
+      imageUrl: ipfsToGatewayUrl(data.imageUrl || data.ipfsUrl),
+      imageCID: data.imageCID || extractIpfsCID(data.imageUrl || data.ipfsUrl),
       metadataUrl: data.metadataUrl,
-      ipfsUrl: data.ipfsUrl,
+      metadataCID: data.metadataCID || extractIpfsCID(data.metadataUrl),
     };
   } catch (error) {
     console.error('AI generation error:', error);

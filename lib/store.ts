@@ -117,6 +117,47 @@ export const useGeneratorStore = create<GeneratorState>()((set, get) => ({
   }),
 }));
 
+// AI Generated Collection Draft Store
+export interface AIGeneratedCollectionDraft {
+  prompt: string;
+  collectionName: string;
+  collectionSymbol: string;
+  description: string;
+  maxSupply: number;
+  mintPrice: string;
+  royaltyPercentage: number;
+  imageUrl: string;
+  metadataUrl: string;
+  imageCID: string | null;
+  metadataCID: string | null;
+  layers: Array<{
+    id: string;
+    url: string;
+    zIndex: number;
+  }>;
+  createdAt: number;
+}
+
+interface AIGenerationState {
+  draft: AIGeneratedCollectionDraft | null;
+  setDraft: (draft: AIGeneratedCollectionDraft | null) => void;
+  clearDraft: () => void;
+}
+
+export const useAIGenerationStore = create<AIGenerationState>()(
+  persist(
+    (set) => ({
+      draft: null,
+      setDraft: (draft) => set({ draft }),
+      clearDraft: () => set({ draft: null }),
+    }),
+    {
+      name: 'ai-generation-storage',
+      partialize: (state) => ({ draft: state.draft }),
+    }
+  )
+);
+
 // Collections Store - Tracks deployed collections
 interface DeployedCollection {
   id: string;

@@ -10,12 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { useWalletStore } from '@/lib/store';
-import { generateLayeredNFT, testEdgeFunctionConnectivity } from '@/lib/ai-layered';
+import { useAIGenerationStore, useWalletStore } from '@/lib/store';
+import { generateLayeredNFT, testEdgeFunctionConnectivity, type AIGenerationResponse } from '@/lib/ai-layered';
 import Link from 'next/link';
 
 export default function AIGeneratorPage() {
-  const { isConnected, address } = useWalletStore();
+  const { isConnected } = useWalletStore();
+  const setAIDraft = useAIGenerationStore((state) => state.setDraft);
   const [isGenerating, setIsGenerating] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [collectionName, setCollectionName] = useState('');
@@ -24,7 +25,7 @@ export default function AIGeneratorPage() {
   const [maxSupply, setMaxSupply] = useState('100');
   const [mintPrice, setMintPrice] = useState('0.01');
   const [royaltyPercentage, setRoyaltyPercentage] = useState('5');
-  const [generatedResult, setGeneratedResult] = useState<any>(null);
+  const [generatedResult, setGeneratedResult] = useState<AIGenerationResponse | null>(null);
   const [error, setError] = useState('');
 
   const handleTestConnection = async () => {
@@ -63,10 +64,31 @@ export default function AIGeneratorPage() {
         royaltyPercentage: parseFloat(royaltyPercentage),
       });
 
-      if (result.success) {
+      if (result.success && result.imageUrl && result.metadataUrl) {
+        setAIDraft({
+          prompt,
+          collectionName,
+          collectionSymbol,
+          description,
+          maxSupply: parseInt(maxSupply),
+          mintPrice,
+          royaltyPercentage: parseFloat(royaltyPercentage),
+          imageUrl: result.imageUrl,
+          metadataUrl: result.metadataUrl,
+          imageCID: result.imageCID || null,
+          metadataCID: result.metadataCID || null,
+          layers: [
+            {
+              id: 'main',
+              url: result.imageUrl,
+              zIndex: 0,
+            },
+          ],
+          createdAt: Date.now(),
+        });
         setGeneratedResult(result);
       } else {
-        setError(result.error || 'Generation failed');
+        setError(result.error || 'Generation completed without usable image metadata');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
@@ -115,7 +137,8 @@ export default function AIGeneratorPage() {
                     <Sparkles className="h-5 w-5 text-crown" />
                     Create Your AI Layered NFT
                   </CardTitle>
-                  <CardDescription>.
+                  <CardDescription>
+                    Generate one AI artwork, pin its metadata, then deploy it as your collection seed.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -266,7 +289,7 @@ export default function AIGeneratorPage() {
                         <div>
                           <span className="text-muted-foreground">Metadata CID:</span>
                           <p className="font-mono text-xs break-all text-amber-400">
-                            {generatedResult.metadataCID}
+                            {generatedResult.metadataCID || generatedResult.metadataUrl}
                           </p>
                         </div>
                       </div>

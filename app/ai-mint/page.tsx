@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Crown, Loader2, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,34 +10,33 @@ import { Label } from '@/components/ui/label';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import LayeredNFTViewer from '@/components/layered-nft-viewer';
-import { useWalletStore } from '@/lib/store';
-import { useCollectionsStore } from '@/lib/store';
-import { uploadLayeredMetadataToIPFS } from '@/lib/ai-layered';
+import { useAIGenerationStore, useCollectionsStore, useWalletStore } from '@/lib/store';
 import { deployCollection } from '@/lib/contracts/contract-source';
+import { useWalletClient } from 'wagmi';
+import Link from 'next/link';
 
 export default function AIMintPage() {
   const { isConnected, address } = useWalletStore();
   const addDeployedCollection = useCollectionsStore((state) => state.addDeployedCollection);
+  const generatedDraft = useAIGenerationStore((state) => state.draft);
+  const { data: walletClient } = useWalletClient();
   
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployedAddress, setDeployedAddress] = useState('');
-  const [txHash, setTxHash] = useState('');
   const [error, setError] = useState('');
-  
-  // Collection details (in a real app, these would come from the generator page)
-  const [collectionDetails] = useState({
-    name: 'AI Generated Collection',
-    symbol: 'AIGEN',
-    description: 'AI-generated layered NFT collection',
-    maxSupply: 100,
-    mintPrice: '0.01',
-    royaltyPercentage: 5,
-  });
 
-  // Sample layers (in a real app, these would come from the generator result)
-  const [layers] = useState([
-    { id: 'main', url: 'https://gateway.pinata.cloud/ipfs/QmPlaceholder', zIndex: 0 },
-  ]);
+  const collectionDetails = generatedDraft
+    ? {
+        name: generatedDraft.collectionName,
+        symbol: generatedDraft.collectionSymbol,
+        description: generatedDraft.description || `AI-generated NFT collection from prompt: ${generatedDraft.prompt}`,
+        maxSupply: generatedDraft.maxSupply,
+        mintPrice: generatedDraft.mintPrice,
+        royaltyPercentage: generatedDraft.royaltyPercentage,
+      }
+    : null;
+
+  const layers = generatedDraft?.layers || [];
 
   const handleDeploy = async () => {
     if (!isConnected) {
@@ -45,27 +44,28 @@ export default function AIMintPage() {
       return;
     }
 
+    if (!generatedDraft || !collectionDetails) {
+      setError('Generate an AI NFT before deploying.');
+      return;
+    }
+
+    if (!walletClient) {
+      setError('Wallet client not available. Please connect your wallet.');
+      return;
+    }
+
     setIsDeploying(true);
     setError('');
 
     try {
-      // Step 1: Upload metadata to IPFS
-      const metadata = {
-        name: collectionDetails.name,
-        description: collectionDetails.description,
-        composition: {
-          layers: layers,
-          blendMode: 'normal',
-        },
-      };
+      // The generator already pinned image and metadata through the Edge Function.
+      const metadataURI = generatedDraft.metadataUrl;
 
-      const metadataURI = await uploadLayeredMetadataToIPFS(metadata);
-      
-      // Step 2: Deploy contract
       const contractAddress = await deployCollection(
         address as string,
         collectionDetails,
-        metadataURI
+        metadataURI,
+        walletClient
       );
 
       setDeployedAddress(contractAddress);
@@ -82,7 +82,7 @@ export default function AIMintPage() {
         mintPrice: collectionDetails.mintPrice,
         creatorAddress: address as string,
         deployedAt: Date.now(),
-        txHash: txHash || 'pending',
+        txHash: 'pending',
       });
 
     } catch (err) {
@@ -121,6 +121,19 @@ export default function AIMintPage() {
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto text-sm md:text-base">
                   Connect your wallet to deploy your AI-generated collection.
                 </p>
+              </CardContent>
+            </Card>
+          ) : !generatedDraft || !collectionDetails ? (
+            <Card className="royal-card text-center py-12 md:py-16">
+              <CardContent>
+                <Sparkles className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-muted-foreground" />
+                <h2 className="font-display text-lg md:text-xl font-bold mb-2">No AI NFT Ready</h2>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto text-sm md:text-base">
+                  Generate AI artwork first, then come back here to deploy that exact result.
+                </p>
+                <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white">
+                  <Link href="/ai-generator">Generate AI NFT</Link>
+                </Button>
               </CardContent>
             </Card>
           ) : (

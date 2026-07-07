@@ -4,21 +4,23 @@ const STABILITY_API_KEY = Deno.env.get("STABILITY_API_KEY");
 const PINATA_JWT = Deno.env.get("PINATA_JWT");
 const REMOVAL_API_KEY = Deno.env.get("REMOVAL_API_KEY");
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'content-type',
-      },
+      headers: corsHeaders,
     });
   }
 
   try {
-    const { prompt, collectionName, collectionSymbol, description } = await req.json();
+    const { prompt, collectionName, collectionSymbol, description, dryRun } = await req.json();
 
     if (!prompt) {
       return new Response(
@@ -27,8 +29,20 @@ serve(async (req) => {
           status: 400, 
           headers: { 
             "Content-Type": "application/json",
-            'Access-Control-Allow-Origin': '*',
+            ...corsHeaders,
           } 
+        }
+      );
+    }
+
+    if (dryRun) {
+      return new Response(
+        JSON.stringify({ success: true, message: "Edge Function is reachable" }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
         }
       );
     }
@@ -150,13 +164,16 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        imageUrl: ipfsUrl,
+        imageCID: ipfsHash,
         metadataUrl: metadataUrl,
+        metadataCID: metadataData.IpfsHash,
         ipfsUrl: ipfsUrl,
       }),
       {
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          ...corsHeaders,
         },
       }
     );
@@ -169,7 +186,7 @@ serve(async (req) => {
         status: 500,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          ...corsHeaders,
         } 
       }
     );

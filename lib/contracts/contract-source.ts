@@ -1,5 +1,6 @@
 // Flattened single-file source code for Basescan verification
 // This is the exact source that gets submitted to Basescan for verification
+import type { WalletClient } from 'viem';
 
 export const ROYAL_NFT_SOURCE_CODE = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -699,19 +700,11 @@ export async function deployCollection(
     mintPrice: string;
     royaltyPercentage: number;
   },
-  metadataURI: string
+  metadataURI: string,
+  client: WalletClient
 ): Promise<string> {
-  const { encodeFunctionData, parseEther, createPublicClient, http } = await import('viem');
-  const { useWalletClient } = await import('wagmi');
+  const { parseEther, createPublicClient, http } = await import('viem');
   const { CONTRACTS } = await import('@/lib/config');
-
-  // Get wallet client
-  const walletClient = await useWalletClient();
-  if (!walletClient.data) {
-    throw new Error('Wallet client not available. Please connect your wallet.');
-  }
-
-  const client = walletClient.data;
   const address = creatorAddress as `0x${string}`;
 
   // Set deployment fee to 0.0001 ETH
@@ -742,6 +735,8 @@ export async function deployCollection(
     functionName: 'createCollection',
     args: [collectionParams],
     value: deploymentFeeWei,
+    chain: null,
+    account: address,
   });
 
   // Wait for transaction confirmation
