@@ -95,6 +95,18 @@ const characterRigBlueprint = [
   "All non-background layers must use these exact anchors and proportions so the PNGs fit perfectly when stacked",
 ].join(". ");
 
+const compactCharacterRigBlueprint = [
+  "Rig: square 1024, front-facing bust, center x512",
+  "head x326-698 y170-560",
+  "eyes y330 x438/x586",
+  "mouth x512 y455",
+  "hair x285-739 y95-385",
+  "neck x456-568 y545-660",
+  "torso x260-764 y610-980",
+  "dress x235-789 y575-1000",
+  "use exact anchors so layers stack",
+].join("; ");
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -247,7 +259,6 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
         prompt: [
           `Collection concept and art style: ${prompt}`,
           lockedStyle,
-          characterRigBlueprint,
           `Layer to generate: ${name}`,
           `User direction for this layer: ${layerPrompt}`,
           getLayerIsolationInstructions(name),
@@ -300,6 +311,45 @@ function requireSecret(value: string | undefined, name: string): string {
   }
 
   return value;
+}
+
+function limitPrompt(prompt: string, maxLength: number): string {
+  const normalizedPrompt = prompt.replace(/\s+/g, " ").trim();
+  if (normalizedPrompt.length <= maxLength) return normalizedPrompt;
+  return normalizedPrompt.slice(0, maxLength - 3).replace(/\s+\S*$/, "") + "...";
+}
+
+function buildProviderPrompt(prompt: string, provider: string): string {
+  if (provider !== "cloudflare") {
+    return prompt;
+  }
+
+  const layerMatch = prompt.match(/Layer to generate: ([^.]+)/);
+  const directionMatch = prompt.match(/User direction for this layer: ([^.]+)/);
+  const conceptMatch = prompt.match(/Collection concept and art style: ([^.]+)/);
+  const variantMatch = prompt.match(/Variant \d+/);
+  const isBackground = /Layer to generate: Background/i.test(prompt);
+
+  if (layerMatch) {
+    const layerName = layerMatch[1].trim();
+    const direction = directionMatch?.[1]?.trim() || layerName;
+    const concept = conceptMatch?.[1]?.trim() || "NFT collection";
+    const layerRules = isBackground
+      ? "background/environment only; no character, body, face, eyes, mouth, hair, clothing, logo, text, watermark"
+      : "single transparent-ready isolated cutout on pure white; no unrelated parts, scenery, text, logo, watermark";
+
+    return limitPrompt([
+      `Concept: ${concept}`,
+      `Layer: ${layerName}`,
+      `Direction: ${direction}`,
+      compactCharacterRigBlueprint,
+      layerRules,
+      variantMatch?.[0] || "",
+      "high-detail consistent NFT layer",
+    ].filter(Boolean).join(". "), 2048);
+  }
+
+  return limitPrompt(prompt, 2048);
 }
 
 async function generateImage(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
@@ -414,6 +464,7 @@ async function generateImageWithCloudflare(prompt: string): Promise<ArrayBuffer>
     .map((part) => encodeURIComponent(part))
     .join("/");
 
+  const cloudflarePrompt = buildProviderPrompt(prompt, "cloudflare");
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodedModel}`,
     {
@@ -423,7 +474,7 @@ async function generateImageWithCloudflare(prompt: string): Promise<ArrayBuffer>
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        prompt,
+        prompt: cloudflarePrompt,
         steps: 4,
       }),
     }
