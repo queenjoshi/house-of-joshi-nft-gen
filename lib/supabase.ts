@@ -1,9 +1,31 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+type UntypedSupabaseClient = SupabaseClient<any>;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+let supabaseClient: UntypedSupabaseClient | null = null;
+
+function getSupabaseClient(): UntypedSupabaseClient {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      'Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    );
+  }
+
+  if (!supabaseClient) {
+    supabaseClient = createClient<any>(supabaseUrl, supabaseAnonKey);
+  }
+
+  return supabaseClient;
+}
+
+export const supabase = new Proxy({} as UntypedSupabaseClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getSupabaseClient(), prop, receiver);
+  },
+});
 
 // Helper functions for database operations
 export async function getUser(walletAddress: string) {
