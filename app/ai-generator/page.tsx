@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { useAIGenerationStore, useWalletStore, type AIGeneratedCollectionDraft } from '@/lib/store';
+import { useAIGenerationStore, type AIGeneratedCollectionDraft } from '@/lib/store';
 import {
   generateLayeredNFT,
   testEdgeFunctionConnectivity,
@@ -19,15 +19,16 @@ import {
   type GeneratedLayerAsset,
 } from '@/lib/ai-layered';
 import Link from 'next/link';
+import { useAccount } from 'wagmi';
 
 const defaultLayerPrompts: AILayerPrompt[] = [
-  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment only, no character or foreground subject', traitCount: 1 },
-  { id: 'body', name: 'Body', prompt: 'body base only: torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes', traitCount: 1 },
-  { id: 'face', name: 'Face', prompt: 'face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body', traitCount: 1 },
-  { id: 'eyes', name: 'Eyes', prompt: 'eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body', traitCount: 1 },
-  { id: 'mouth', name: 'Mouth', prompt: 'mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body', traitCount: 1 },
-  { id: 'hair', name: 'Hair', prompt: 'hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body', traitCount: 1 },
-  { id: 'dress', name: 'Dress', prompt: 'clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background', traitCount: 1 },
+  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment only, no animal, no character, no face, no body, no foreground subject', traitCount: 3 },
+  { id: 'body', name: 'Body', prompt: 'body base only: torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes', traitCount: 3 },
+  { id: 'face', name: 'Face', prompt: 'face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body', traitCount: 3 },
+  { id: 'eyes', name: 'Eyes', prompt: 'eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body', traitCount: 3 },
+  { id: 'mouth', name: 'Mouth', prompt: 'mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body', traitCount: 3 },
+  { id: 'hair', name: 'Hair', prompt: 'hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body', traitCount: 3 },
+  { id: 'dress', name: 'Dress', prompt: 'clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background', traitCount: 3 },
 ];
 
 function createLayerPrompt(): AILayerPrompt {
@@ -46,15 +47,18 @@ function summarizeConcept(value: string) {
 function createSuggestedLayerPrompts(mainPrompt: string): AILayerPrompt[] {
   const concept = summarizeConcept(mainPrompt);
   const stylePrefix = concept ? `matching ${concept}` : 'matching the collection style';
+  const backgroundDirection = concept
+    ? `thematic backdrop inspired by the colors, mood, and world of ${concept}; environment only; no animals, no people, no character, no mascot, no face, no body, no foreground subject`
+    : 'thematic backdrop for the collection; environment only; no animals, no people, no character, no mascot, no face, no body, no foreground subject';
 
   return [
-    { id: 'background', name: 'Background', prompt: `${stylePrefix}; environment only, no character or foreground subject`, traitCount: 1 },
-    { id: 'body', name: 'Body', prompt: `${stylePrefix}; body base only, torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes`, traitCount: 1 },
-    { id: 'face', name: 'Face', prompt: `${stylePrefix}; face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body`, traitCount: 1 },
-    { id: 'eyes', name: 'Eyes', prompt: `${stylePrefix}; eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body`, traitCount: 1 },
-    { id: 'mouth', name: 'Mouth', prompt: `${stylePrefix}; mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body`, traitCount: 1 },
-    { id: 'hair', name: 'Hair', prompt: `${stylePrefix}; hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body`, traitCount: 1 },
-    { id: 'dress', name: 'Dress', prompt: `${stylePrefix}; clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background`, traitCount: 1 },
+    { id: 'background', name: 'Background', prompt: backgroundDirection, traitCount: 3 },
+    { id: 'body', name: 'Body', prompt: `${stylePrefix}; body base only, torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes`, traitCount: 3 },
+    { id: 'face', name: 'Face', prompt: `${stylePrefix}; face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body`, traitCount: 3 },
+    { id: 'eyes', name: 'Eyes', prompt: `${stylePrefix}; eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body`, traitCount: 3 },
+    { id: 'mouth', name: 'Mouth', prompt: `${stylePrefix}; mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body`, traitCount: 3 },
+    { id: 'hair', name: 'Hair', prompt: `${stylePrefix}; hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body`, traitCount: 3 },
+    { id: 'dress', name: 'Dress', prompt: `${stylePrefix}; clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background`, traitCount: 3 },
   ];
 }
 
@@ -180,7 +184,7 @@ function createStoredZip(files: Array<{ path: string; bytes: Uint8Array }>) {
 }
 
 export default function AIGeneratorPage() {
-  const { isConnected } = useWalletStore();
+  const { isConnected } = useAccount();
   const setAIDraft = useAIGenerationStore((state) => state.setDraft);
   const saveAIDraft = useAIGenerationStore((state) => state.saveDraft);
   const savedDrafts = useAIGenerationStore((state) => state.savedDrafts);

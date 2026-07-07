@@ -121,6 +121,10 @@ function shouldRemoveBackground(layerName: string): boolean {
   return !layerName.toLowerCase().includes("background");
 }
 
+function isBackgroundLayer(layerName: string): boolean {
+  return layerName.toLowerCase().includes("background");
+}
+
 function getLayerIsolationInstructions(layerName: string): string {
   const normalizedName = layerName.toLowerCase();
   const sharedLayerRules = [
@@ -135,8 +139,10 @@ function getLayerIsolationInstructions(layerName: string): string {
 
   if (normalizedName.includes("background")) {
     return [
-      "Generate background/environment only",
-      "Do not include any character, body, face, eyes, mouth, hair, clothing, accessories, foreground subject, text, logo, or watermark",
+      "Generate a background/environment layer only, like the back layer in a generative NFT art engine",
+      "This layer must be an empty scene, abstract backdrop, room, landscape, pattern, gradient, sky, wall, floor, or environment",
+      "Do not include the collection's main subject even if the collection prompt names one",
+      "Do not include cats, dogs, animals, humans, creatures, mascots, characters, bodies, faces, eyes, mouths, hair, clothing, accessories, silhouettes, foreground subjects, text, logo, or watermark",
       "The result should be a full square background that can sit behind transparent character layers",
     ].join(". ");
   }
@@ -254,17 +260,30 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
       const name = (layer.name || `Layer ${index + 1}`).trim();
       const layerPrompt = (layer.prompt || name).trim();
       const traitCount = Math.max(1, Math.min(8, layer.traitCount || traitsPerLayer || 3));
+      const isBackground = isBackgroundLayer(name);
+      const collectionContext = isBackground
+        ? [
+            `Collection theme/style reference only: ${prompt}`,
+            "Use only the theme, colors, lighting, world, mood, and art direction from the collection prompt",
+            "Do not render the named subject from the collection prompt in this background layer",
+          ].join(". ")
+        : `Collection concept and art style: ${prompt}`;
 
       return {
         id: layer.id || slugify(name),
         name,
         prompt: [
-          `Collection concept and art style: ${prompt}`,
+          collectionContext,
           lockedStyle,
           `Layer to generate: ${name}`,
           `User direction for this layer: ${layerPrompt}`,
           getLayerIsolationInstructions(name),
-          shouldRemoveBackground(name)
+          isBackground
+            ? [
+                "Output must be only a complete backplate/background artwork",
+                "Absolutely no character, no animal, no cat, no creature, no body part, no face, no silhouette, and no foreground subject",
+              ].join(". ")
+            : shouldRemoveBackground(name)
             ? "Output must look like a clean isolated cutout on pure white, ready to remove the background into a transparent PNG"
             : "Output must be a complete background artwork with no transparent cutout subject",
           "High-detail digital collectible art, crisp NFT generator layer, consistent style across all traits",
@@ -329,22 +348,23 @@ function buildProviderPrompt(prompt: string, provider: string): string {
   const layerMatch = prompt.match(/Layer to generate: ([^.]+)/);
   const directionMatch = prompt.match(/User direction for this layer: ([^.]+)/);
   const conceptMatch = prompt.match(/Collection concept and art style: ([^.]+)/);
+  const backgroundConceptMatch = prompt.match(/Collection theme\/style reference only: ([^.]+)/);
   const variantMatch = prompt.match(/Variant \d+/);
   const isBackground = /Layer to generate: Background/i.test(prompt);
 
   if (layerMatch) {
     const layerName = layerMatch[1].trim();
     const direction = directionMatch?.[1]?.trim() || layerName;
-    const concept = conceptMatch?.[1]?.trim() || "NFT collection";
+    const concept = (isBackground ? backgroundConceptMatch?.[1] : conceptMatch?.[1])?.trim() || "NFT collection";
     const layerRules = isBackground
-      ? "background/environment only; no character, body, face, eyes, mouth, hair, clothing, logo, text, watermark"
+      ? "empty background/backplate only; use theme colors and mood only; no cat, animal, person, creature, mascot, character, body, face, eyes, mouth, hair, clothing, silhouette, logo, text, watermark"
       : "single transparent-ready isolated cutout on pure white; no unrelated parts, scenery, text, logo, watermark";
 
     return limitPrompt([
-      `Concept: ${concept}`,
+      isBackground ? `Theme only, do not draw subject: ${concept}` : `Concept: ${concept}`,
       `Layer: ${layerName}`,
       `Direction: ${direction}`,
-      compactCharacterRigBlueprint,
+      isBackground ? "" : compactCharacterRigBlueprint,
       layerRules,
       variantMatch?.[0] || "",
       "high-detail consistent NFT layer",
