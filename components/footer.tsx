@@ -43,14 +43,21 @@ const FOOTER_LINKS = {
   ],
 };
 
+const FOOTER_SECTIONS = [
+  { title: 'Product', links: FOOTER_LINKS.product },
+  { title: 'Resources', links: FOOTER_LINKS.resources },
+  { title: 'Services', links: FOOTER_LINKS.services },
+  { title: 'Legal', links: FOOTER_LINKS.legal },
+];
+
 export function Footer() {
   return (
     <footer className="border-t border-royal-500/20 bg-background/80 backdrop-blur-xl">
-      <div className="container mx-auto px-4 py-8 sm:py-12 max-w-7xl">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8">
+      <div className="container mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1.35fr)_minmax(0,2fr)] lg:grid-cols-[minmax(260px,1.2fr)_minmax(0,2.4fr)] lg:gap-10">
           {/* Brand Column */}
-          <div className="col-span-2 sm:col-span-1 lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-3 sm:mb-4">
+          <div className="max-w-md">
+            <Link href="/" className="mb-3 flex min-h-0 min-w-0 items-center gap-2 sm:mb-4">
               <Image 
                 src="/joshi-logo.png" 
                 alt="Joshi Logo" 
@@ -58,144 +65,88 @@ export function Footer() {
                 height={24}
                 className="h-5 w-5 sm:h-6 sm:w-6"
               />
-              <span className="font-display text-lg sm:text-xl font-bold gold-text hidden sm:inline">
+              <span className="gold-text font-display text-lg font-bold leading-tight sm:text-xl">
                 House of Joshi
               </span>
             </Link>
-            <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
+            <p className="mb-4 max-w-sm text-sm leading-6 text-muted-foreground">
               Create, launch, and mint generative NFT collections on Base.
               The premier NFT launchpad with royalty-themed aesthetics.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <a
                 href="mailto:support@thehouseofjoshi.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-crown transition-colors"
+                className="grid h-10 w-10 place-items-center rounded-md border border-royal-500/20 text-muted-foreground transition-colors hover:border-crown/50 hover:text-crown"
                 title="Email"
               >
-                <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Mail className="h-4 w-4" />
               </a>
               <a
                 href="https://twitter.com/thehouseofjoshi"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-crown transition-colors"
+                className="grid h-10 w-10 place-items-center rounded-md border border-royal-500/20 text-muted-foreground transition-colors hover:border-crown/50 hover:text-crown"
                 title="X (Twitter)"
               >
-                <XIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <XIcon className="h-4 w-4" />
               </a>
               <a
                 href="https://discord.com/invite/uH9zVeAwDu"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-crown transition-colors"
+                className="grid h-10 w-10 place-items-center rounded-md border border-royal-500/20 text-muted-foreground transition-colors hover:border-crown/50 hover:text-crown"
                 title="Discord"
               >
-                <DiscordIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <DiscordIcon className="h-4 w-4" />
               </a>
               <a
                 href="https://www.instagram.com/thehouseofjoshi"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-crown transition-colors"
+                className="grid h-10 w-10 place-items-center rounded-md border border-royal-500/20 text-muted-foreground transition-colors hover:border-crown/50 hover:text-crown"
                 title="Instagram"
               >
-                <Instagram className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Instagram className="h-4 w-4" />
               </a>
             </div>
           </div>
 
-          {/* Product Links */}
-          <div>
-            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
-              Product
-            </h3>
-            <ul className="space-y-1.5 sm:space-y-2">
-              {FOOTER_LINKS.product.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    target={link.external ? '_blank' : undefined}
-                    rel={link.external ? 'noopener noreferrer' : undefined}
-                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
-                  >
-                    {link.label}
-                    {link.external && <ExternalLink className="h-3 w-3" />}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Resources Links */}
-          <div>
-            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
-              Resources
-            </h3>
-            <ul className="space-y-1.5 sm:space-y-2">
-              {FOOTER_LINKS.resources.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
-                  >
-                    {link.label}
-                    <ExternalLink className="h-3 w-3" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Services Links */}
-          <div>
-            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
-              Services
-            </h3>
-            <ul className="space-y-1.5 sm:space-y-2">
-              {FOOTER_LINKS.services.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    target={link.external ? '_blank' : undefined}
-                    rel={link.external ? 'noopener noreferrer' : undefined}
-                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors flex items-center gap-1"
-                  >
-                    {link.label}
-                    {link.external && <ExternalLink className="h-3 w-3" />}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal Links */}
-          <div>
-            <h3 className="font-display font-semibold text-xs sm:text-sm uppercase tracking-wider mb-3 sm:mb-4 text-foreground">
-              Legal
-            </h3>
-            <ul className="space-y-1.5 sm:space-y-2">
-              {FOOTER_LINKS.legal.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    href={link.href}
-                    className="text-xs sm:text-sm text-muted-foreground hover:text-crown transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-4 lg:gap-x-8">
+            {FOOTER_SECTIONS.map((section) => (
+              <div key={section.title} className="min-w-0">
+                <h3 className="font-display mb-3 text-xs font-semibold uppercase tracking-wider text-foreground sm:text-sm">
+                  {section.title}
+                </h3>
+                <ul className="space-y-2">
+                  {section.links.map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        target={link.external ? '_blank' : undefined}
+                        rel={link.external ? 'noopener noreferrer' : undefined}
+                        className="group flex min-h-0 min-w-0 items-center gap-1.5 text-sm leading-5 text-muted-foreground transition-colors hover:text-crown"
+                      >
+                        <span className="min-w-0 break-words">{link.label}</span>
+                        {link.external && (
+                          <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70 group-hover:opacity-100" />
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-royal-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-          <p className="text-[10px] sm:text-xs text-muted-foreground">
+        <div className="mt-8 flex flex-col gap-2 border-t border-royal-500/20 pt-5 text-center sm:mt-10 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:text-left lg:mt-12 lg:pt-6">
+          <p className="text-xs leading-5 text-muted-foreground">
             &copy; {new Date().getFullYear()} The House of Joshi. All rights reserved.
           </p>
-          <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
+          <p className="text-xs leading-5 text-muted-foreground">
             Built on Base
           </p>
         </div>
