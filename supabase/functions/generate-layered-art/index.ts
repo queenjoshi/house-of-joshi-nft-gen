@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const STABILITY_API_KEY = Deno.env.get("STABILITY_API_KEY");
+const AI_PROVIDER = (Deno.env.get("AI_PROVIDER") || "stability").toLowerCase();
+const CLOUDFLARE_ACCOUNT_ID = Deno.env.get("CLOUDFLARE_ACCOUNT_ID");
+const CLOUDFLARE_API_TOKEN = Deno.env.get("CLOUDFLARE_API_TOKEN");
+const CLOUDFLARE_IMAGE_MODEL = Deno.env.get("CLOUDFLARE_IMAGE_MODEL") || "@cf/black-forest-labs/flux-1-schnell";
 const PINATA_JWT = Deno.env.get("PINATA_JWT");
 const REMOVAL_API_KEY = Deno.env.get("REMOVAL_API_KEY");
 
@@ -109,6 +113,14 @@ function requireSecret(value: string | undefined, name: string): string {
 }
 
 async function generateImage(prompt: string): Promise<ArrayBuffer> {
+  if (AI_PROVIDER === "cloudflare") {
+    return generateImageWithCloudflare(prompt);
+  }
+
+  return generateImageWithStability(prompt);
+}
+
+async function generateImageWithStability(prompt: string): Promise<ArrayBuffer> {
   const stabilityKey = requireSecret(STABILITY_API_KEY, "STABILITY_API_KEY");
   const formData = new FormData();
   formData.append("prompt", prompt);
@@ -132,6 +144,63 @@ async function generateImage(prompt: string): Promise<ArrayBuffer> {
   }
 
   return await response.arrayBuffer();
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes.buffer;
+}
+
+async function generateImageWithCloudflare(prompt: string): Promise<ArrayBuffer> {
+  const accountId = requireSecret(CLOUDFLARE_ACCOUNT_ID, "CLOUDFLARE_ACCOUNT_ID");
+  const apiToken = requireSecret(CLOUDFLARE_API_TOKEN, "CLOUDFLARE_API_TOKEN");
+  const encodedModel = CLOUDFLARE_IMAGE_MODEL
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodedModel}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        prompt,
+        steps: 4,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Cloudflare Workers AI error:", errorText);
+    throw new Error(`Cloudflare Workers AI failed: ${errorText}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.startsWith("image/")) {
+    return await response.arrayBuffer();
+  }
+
+  const data = await response.json();
+  const image = data.image || data.result?.image;
+
+  if (!image || typeof image !== "string") {
+    console.error("Unexpected Cloudflare Workers AI response:", JSON.stringify(data));
+    throw new Error("Cloudflare Workers AI failed: response did not include an image");
+  }
+
+  const base64 = image.includes(",") ? image.split(",").pop() || image : image;
+  return base64ToArrayBuffer(base64);
 }
 
 async function removeBackground(imageBuffer: ArrayBuffer): Promise<ArrayBuffer> {
