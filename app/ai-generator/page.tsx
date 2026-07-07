@@ -21,13 +21,13 @@ import {
 import Link from 'next/link';
 
 const defaultLayerPrompts: AILayerPrompt[] = [
-  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment, no character', traitCount: 1 },
-  { id: 'body', name: 'Body', prompt: 'character body, pose, outfit base, transparent background', traitCount: 1 },
-  { id: 'face', name: 'Face', prompt: 'face shape and expression, transparent background', traitCount: 1 },
-  { id: 'eyes', name: 'Eyes', prompt: 'distinct expressive eyes, transparent background', traitCount: 1 },
-  { id: 'mouth', name: 'Mouth', prompt: 'mouth expressions, transparent background', traitCount: 1 },
-  { id: 'hair', name: 'Hair', prompt: 'hair styles or head accessories, transparent background', traitCount: 1 },
-  { id: 'dress', name: 'Dress', prompt: 'royal clothing, armor, dress or accessories, transparent background', traitCount: 1 },
+  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment only, no character or foreground subject', traitCount: 1 },
+  { id: 'body', name: 'Body', prompt: 'body base only: torso, shoulders, arms and neck, no head, no face, no hair, no clothes', traitCount: 1 },
+  { id: 'face', name: 'Face', prompt: 'face/head skin shape only, no eyes, no mouth, no hair, no body', traitCount: 1 },
+  { id: 'eyes', name: 'Eyes', prompt: 'eyes and eyebrows only, no face skin, no mouth, no hair, no body', traitCount: 1 },
+  { id: 'mouth', name: 'Mouth', prompt: 'mouth and lips only, no face skin, no eyes, no hair, no body', traitCount: 1 },
+  { id: 'hair', name: 'Hair', prompt: 'hair or hairstyle only, no face, no eyes, no mouth, no body', traitCount: 1 },
+  { id: 'dress', name: 'Dress', prompt: 'clothing, armor or dress only, no face, no hair, no background', traitCount: 1 },
 ];
 
 function createLayerPrompt(): AILayerPrompt {

@@ -42,31 +42,31 @@ const defaultLayers: RequestedLayer[] = [
   {
     id: "background",
     name: "Background",
-    prompt: "environment, setting, atmosphere, no central character",
+    prompt: "environment, setting, atmosphere only",
     traitCount: 3,
   },
   {
     id: "body",
     name: "Body",
-    prompt: "body silhouette, outfit base, pose, clean transparent layer",
+    prompt: "body and neck base only, no head, no face, no hair, no clothing accessories",
     traitCount: 3,
   },
   {
     id: "face",
     name: "Face",
-    prompt: "face shape and expression, clean transparent layer",
+    prompt: "face skin and head shape only, no eyes, no mouth, no hair, no body",
     traitCount: 3,
   },
   {
     id: "eyes",
     name: "Eyes",
-    prompt: "eyes only, expressive eye traits, clean transparent layer",
+    prompt: "eyes and eyebrows only, no face, no hair, no mouth, no body",
     traitCount: 3,
   },
   {
     id: "hair",
     name: "Hair",
-    prompt: "hair or head accessory only, clean transparent layer",
+    prompt: "hair only, no face, no eyes, no body, no background",
     traitCount: 3,
   },
 ];
@@ -83,6 +83,93 @@ function shouldRemoveBackground(layerName: string): boolean {
   return !layerName.toLowerCase().includes("background");
 }
 
+function getLayerIsolationInstructions(layerName: string): string {
+  const normalizedName = layerName.toLowerCase();
+  const sharedLayerRules = [
+    "Create a single isolated NFT generator layer asset, not a full completed character",
+    "Use the same centered front-facing alignment and scale so this layer can stack with the other layers",
+    "Keep the canvas square",
+    "Leave all unrelated parts empty/plain so background removal can make them transparent",
+    "Do not include shadows, scenery, text, logos, frames, watermarks, or extra props unless this exact layer asks for them",
+  ];
+
+  if (normalizedName.includes("background")) {
+    return [
+      "Generate background/environment only",
+      "Do not include any character, body, face, eyes, mouth, hair, clothing, accessories, foreground subject, text, logo, or watermark",
+      "The result should be a full square background that can sit behind transparent character layers",
+    ].join(". ");
+  }
+
+  if (normalizedName.includes("body")) {
+    return [
+      ...sharedLayerRules,
+      "Generate only the character body base, shoulders, arms, torso, and neck if needed",
+      "Do not include head, face, eyes, mouth, hair, clothes, dress, accessories, or background",
+    ].join(". ");
+  }
+
+  if (normalizedName.includes("face") || normalizedName.includes("head")) {
+    return [
+      ...sharedLayerRules,
+      "Generate only the face/head skin shape and expression base",
+      "Do not include eyes, eyebrows, mouth, teeth, hair, hat, neck, body, clothing, accessories, or background",
+    ].join(". ");
+  }
+
+  if (normalizedName.includes("eye") || normalizedName.includes("brow")) {
+    return [
+      ...sharedLayerRules,
+      "Generate only eyes and eyebrows",
+      "Do not include face skin, mouth, nose, hair, head outline, body, clothing, accessories, or background",
+    ].join(". ");
+  }
+
+  if (normalizedName.includes("mouth") || normalizedName.includes("lip")) {
+    return [
+      ...sharedLayerRules,
+      "Generate only mouth, lips, teeth, tongue, or facial expression mouth detail",
+      "Do not include eyes, face skin, nose, hair, head outline, body, clothing, accessories, or background",
+    ].join(". ");
+  }
+
+  if (normalizedName.includes("hair")) {
+    return [
+      ...sharedLayerRules,
+      "Generate only hair or hairstyle",
+      "Do not include face, eyes, mouth, body, clothing, accessories, or background",
+    ].join(". ");
+  }
+
+  if (
+    normalizedName.includes("dress") ||
+    normalizedName.includes("clothes") ||
+    normalizedName.includes("outfit") ||
+    normalizedName.includes("shirt") ||
+    normalizedName.includes("armor")
+  ) {
+    return [
+      ...sharedLayerRules,
+      "Generate only clothing, dress, outfit, armor, or wearable layer pieces",
+      "Do not include face, eyes, mouth, hair, full body skin, background, or scenery",
+    ].join(". ");
+  }
+
+  if (normalizedName.includes("accessor") || normalizedName.includes("prop")) {
+    return [
+      ...sharedLayerRules,
+      "Generate only the requested accessory or prop layer",
+      "Do not include full character, face, body, clothing, background, or scenery",
+    ].join(". ");
+  }
+
+  return [
+    ...sharedLayerRules,
+    `Generate only the ${layerName} layer`,
+    "Do not include unrelated character parts or background",
+  ].join(". ");
+}
+
 function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], traitsPerLayer = 3): GeneratedLayer[] {
   const sourceLayers = requestedLayers?.length ? requestedLayers : defaultLayers;
 
@@ -96,7 +183,13 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
       return {
         id: layer.id || slugify(name),
         name,
-        prompt: `${prompt}. Generate the ${name} NFT collection layer: ${layerPrompt}. Make it consistent with the collection style, square canvas, high-detail digital collectible art.`,
+        prompt: [
+          `Collection concept and art style: ${prompt}`,
+          `Layer to generate: ${name}`,
+          `User direction for this layer: ${layerPrompt}`,
+          getLayerIsolationInstructions(name),
+          "High-detail digital collectible art, crisp PNG-ready layer, consistent style across all traits",
+        ].join(". "),
         order: index,
         removeBackground: shouldRemoveBackground(name),
         traitCount,
