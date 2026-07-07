@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const STABILITY_API_KEY = Deno.env.get("STABILITY_API_KEY");
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const OPENAI_IMAGE_MODEL = Deno.env.get("OPENAI_IMAGE_MODEL") || "gpt-image-1";
+const OPENAI_IMAGE_QUALITY = Deno.env.get("OPENAI_IMAGE_QUALITY") || "low";
 const AI_PROVIDER = (Deno.env.get("AI_PROVIDER") || "stability").toLowerCase();
 const CLOUDFLARE_ACCOUNT_ID = Deno.env.get("CLOUDFLARE_ACCOUNT_ID");
 const CLOUDFLARE_API_TOKEN = Deno.env.get("CLOUDFLARE_API_TOKEN");
@@ -241,6 +244,10 @@ function requireSecret(value: string | undefined, name: string): string {
 }
 
 async function generateImage(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
+  if (AI_PROVIDER === "openai") {
+    return generateImageWithOpenAI(prompt, aspectRatio);
+  }
+
   if (AI_PROVIDER === "cloudflare") {
     return generateImageWithCloudflare(prompt);
   }
@@ -272,6 +279,52 @@ async function generateImageWithStability(prompt: string, aspectRatio = "1:1"): 
   }
 
   return await response.arrayBuffer();
+}
+
+function openAIImageSizeForAspectRatio(aspectRatio: string): string {
+  if (aspectRatio === "16:9" || aspectRatio === "3:2" || aspectRatio === "landscape") {
+    return "1536x1024";
+  }
+
+  if (aspectRatio === "2:3" || aspectRatio === "portrait") {
+    return "1024x1536";
+  }
+
+  return "1024x1024";
+}
+
+async function generateImageWithOpenAI(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
+  const openAIKey = requireSecret(OPENAI_API_KEY, "OPENAI_API_KEY");
+  const response = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${openAIKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: OPENAI_IMAGE_MODEL,
+      prompt,
+      size: openAIImageSizeForAspectRatio(aspectRatio),
+      quality: OPENAI_IMAGE_QUALITY,
+      output_format: "png",
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI image generation error:", errorText);
+    throw new Error(`OpenAI image generation failed: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const image = data.data?.[0]?.b64_json;
+
+  if (!image || typeof image !== "string") {
+    console.error("Unexpected OpenAI image response:", JSON.stringify(data));
+    throw new Error("OpenAI image generation failed: response did not include image data");
+  }
+
+  return base64ToArrayBuffer(image);
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
