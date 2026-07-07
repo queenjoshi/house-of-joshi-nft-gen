@@ -162,7 +162,7 @@ export async function generateLayeredNFT(request: AIGenerationRequest): Promise<
     console.log('Request:', request);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minute timeout for full layer kits
 
     const response = await fetch(
       edgeFunctionUrl,

@@ -268,30 +268,30 @@ serve(async (req) => {
 
     for (const layer of layerPlan) {
       console.log(`Generating ${layer.name} layer with ${layer.traitCount} traits...`);
-      const traits: GeneratedTrait[] = [];
+      const traits = await Promise.all(
+        Array.from({ length: layer.traitCount }, async (_item, traitIndex): Promise<GeneratedTrait> => {
+          const variantNumber = traitIndex + 1;
+          const traitPrompt = `${layer.prompt} Variant ${variantNumber}. Distinct from the other variants while preserving the same layer alignment and NFT collection style.`;
+          const generatedImage = await generateImage(traitPrompt);
+          const layerImage = layer.removeBackground
+            ? await removeBackground(generatedImage)
+            : generatedImage;
+          const uploadedLayer = await uploadFileToPinata(
+            layerImage,
+            `${layer.id}-${variantNumber}.png`
+          );
 
-      for (let traitIndex = 0; traitIndex < layer.traitCount; traitIndex++) {
-        const variantNumber = traitIndex + 1;
-        const traitPrompt = `${layer.prompt} Variant ${variantNumber}. Distinct from the other variants while preserving the same layer alignment and NFT collection style.`;
-        const generatedImage = await generateImage(traitPrompt);
-        const layerImage = layer.removeBackground
-          ? await removeBackground(generatedImage)
-          : generatedImage;
-        const uploadedLayer = await uploadFileToPinata(
-          layerImage,
-          `${layer.id}-${variantNumber}.png`
-        );
+          console.log(`${layer.name} trait ${variantNumber} uploaded:`, uploadedLayer.url);
 
-        traits.push({
-          id: `${layer.id}-${variantNumber}`,
-          name: `${layer.name} ${variantNumber}`,
-          url: uploadedLayer.url,
-          cid: uploadedLayer.cid,
-          rarity: 100,
-        });
-
-        console.log(`${layer.name} trait ${variantNumber} uploaded:`, uploadedLayer.url);
-      }
+          return {
+            id: `${layer.id}-${variantNumber}`,
+            name: `${layer.name} ${variantNumber}`,
+            url: uploadedLayer.url,
+            cid: uploadedLayer.cid,
+            rarity: 100,
+          };
+        })
+      );
 
       generatorLayers.push({
         id: layer.id,

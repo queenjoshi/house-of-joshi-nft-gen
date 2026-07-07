@@ -11,17 +11,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { useAIGenerationStore, useWalletStore } from '@/lib/store';
-import { generateLayeredNFT, testEdgeFunctionConnectivity, type AIGenerationResponse, type AILayerPrompt } from '@/lib/ai-layered';
+import {
+  generateLayeredNFT,
+  testEdgeFunctionConnectivity,
+  type AIGenerationResponse,
+  type AILayerPrompt,
+  type GeneratedLayerAsset,
+} from '@/lib/ai-layered';
 import Link from 'next/link';
 
 const defaultLayerPrompts: AILayerPrompt[] = [
-  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment, no character', traitCount: 3 },
-  { id: 'body', name: 'Body', prompt: 'character body, pose, outfit base, transparent background', traitCount: 3 },
-  { id: 'face', name: 'Face', prompt: 'face shape and expression, transparent background', traitCount: 3 },
-  { id: 'eyes', name: 'Eyes', prompt: 'distinct expressive eyes, transparent background', traitCount: 3 },
-  { id: 'mouth', name: 'Mouth', prompt: 'mouth expressions, transparent background', traitCount: 3 },
-  { id: 'hair', name: 'Hair', prompt: 'hair styles or head accessories, transparent background', traitCount: 3 },
-  { id: 'dress', name: 'Dress', prompt: 'royal clothing, armor, dress or accessories, transparent background', traitCount: 3 },
+  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment, no character', traitCount: 1 },
+  { id: 'body', name: 'Body', prompt: 'character body, pose, outfit base, transparent background', traitCount: 1 },
+  { id: 'face', name: 'Face', prompt: 'face shape and expression, transparent background', traitCount: 1 },
+  { id: 'eyes', name: 'Eyes', prompt: 'distinct expressive eyes, transparent background', traitCount: 1 },
+  { id: 'mouth', name: 'Mouth', prompt: 'mouth expressions, transparent background', traitCount: 1 },
+  { id: 'hair', name: 'Hair', prompt: 'hair styles or head accessories, transparent background', traitCount: 1 },
+  { id: 'dress', name: 'Dress', prompt: 'royal clothing, armor, dress or accessories, transparent background', traitCount: 1 },
 ];
 
 function createLayerPrompt(): AILayerPrompt {
@@ -29,7 +35,7 @@ function createLayerPrompt(): AILayerPrompt {
     id: crypto.randomUUID(),
     name: 'Custom',
     prompt: 'custom trait layer, transparent background',
-    traitCount: 3,
+    traitCount: 1,
   };
 }
 
@@ -45,6 +51,8 @@ export default function AIGeneratorPage() {
   const [mintPrice, setMintPrice] = useState('0.01');
   const [royaltyPercentage, setRoyaltyPercentage] = useState('5');
   const [layerPrompts, setLayerPrompts] = useState<AILayerPrompt[]>(defaultLayerPrompts);
+  const [generatedLayerAssets, setGeneratedLayerAssets] = useState<Record<string, GeneratedLayerAsset>>({});
+  const [generatingLayerId, setGeneratingLayerId] = useState<string | null>(null);
   const [generatedResult, setGeneratedResult] = useState<AIGenerationResponse | null>(null);
   const [error, setError] = useState('');
 
@@ -56,6 +64,45 @@ export default function AIGeneratorPage() {
 
   const removeLayerPrompt = (id: string) => {
     setLayerPrompts((current) => current.filter((layer) => layer.id !== id));
+    setGeneratedLayerAssets((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const saveDraft = (
+    result: AIGenerationResponse,
+    generatorLayers = result.generatorLayers || []
+  ) => {
+    const previewImage = result.imageUrl || generatorLayers[0]?.traits[0]?.preview || '';
+
+    setAIDraft({
+      prompt,
+      collectionName: collectionName || 'AI Generated Collection',
+      collectionSymbol: collectionSymbol || 'AI',
+      description,
+      maxSupply: parseInt(maxSupply),
+      mintPrice,
+      royaltyPercentage: parseFloat(royaltyPercentage),
+      imageUrl: previewImage,
+      metadataUrl: result.metadataUrl || '',
+      imageCID: result.imageCID || null,
+      metadataCID: result.metadataCID || null,
+      layers: result.layers?.length
+        ? result.layers
+        : previewImage
+          ? [{ id: 'preview', url: previewImage, zIndex: 0 }]
+          : [],
+      generatorLayers: generatorLayers.map((layer) => ({
+        ...layer,
+        traits: layer.traits.map((trait) => ({
+          ...trait,
+          file: null,
+        })),
+      })),
+      createdAt: Date.now(),
+    });
   };
 
   const downloadMetadata = () => {
@@ -120,38 +167,12 @@ export default function AIGeneratorPage() {
       });
 
       if (result.success && result.imageUrl && result.metadataUrl) {
-        const generatedLayers = result.layers?.length
-          ? result.layers
-          : [
-              {
-                id: 'main',
-                url: result.imageUrl,
-                zIndex: 0,
-              },
-            ];
-
-        setAIDraft({
-          prompt,
-          collectionName,
-          collectionSymbol,
-          description,
-          maxSupply: parseInt(maxSupply),
-          mintPrice,
-          royaltyPercentage: parseFloat(royaltyPercentage),
-          imageUrl: result.imageUrl,
-          metadataUrl: result.metadataUrl,
-          imageCID: result.imageCID || null,
-          metadataCID: result.metadataCID || null,
-          layers: generatedLayers,
-          generatorLayers: result.generatorLayers?.map((layer) => ({
-            ...layer,
-            traits: layer.traits.map((trait) => ({
-              ...trait,
-              file: null,
-            })),
-          })),
-          createdAt: Date.now(),
-        });
+        if (result.generatorLayers?.length) {
+          setGeneratedLayerAssets(
+            Object.fromEntries(result.generatorLayers.map((layer) => [layer.id, layer]))
+          );
+        }
+        saveDraft(result);
         setGeneratedResult(result);
       } else {
         setError(result.error || 'Generation completed without usable image metadata');
@@ -160,6 +181,59 @@ export default function AIGeneratorPage() {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateLayer = async (layer: AILayerPrompt) => {
+    if (!isConnected) {
+      setError('Please connect your wallet first');
+      return;
+    }
+
+    if (!prompt.trim() || !layer.name.trim() || !layer.prompt.trim()) {
+      setError('Add a main prompt and fill in this layer before generating.');
+      return;
+    }
+
+    setGeneratingLayerId(layer.id);
+    setError('');
+
+    try {
+      const result = await generateLayeredNFT({
+        prompt,
+        layerPrompts: [layer],
+        collectionName: collectionName || 'AI Generated Collection',
+        collectionSymbol: collectionSymbol || 'AI',
+        description,
+        maxSupply: parseInt(maxSupply),
+        mintPrice,
+        royaltyPercentage: parseFloat(royaltyPercentage),
+      });
+
+      const generatedLayer = result.generatorLayers?.[0];
+
+      if (result.success && generatedLayer) {
+        const nextGeneratedLayers = {
+          ...generatedLayerAssets,
+          [generatedLayer.id]: generatedLayer,
+        };
+        const orderedGeneratedLayers = layerPrompts
+          .map((layerPrompt) => nextGeneratedLayers[layerPrompt.id])
+          .filter((generatedLayer): generatedLayer is GeneratedLayerAsset => Boolean(generatedLayer));
+
+        setGeneratedLayerAssets(nextGeneratedLayers);
+        saveDraft(result, orderedGeneratedLayers);
+        setGeneratedResult({
+          ...result,
+          generatorLayers: orderedGeneratedLayers,
+        });
+      } else {
+        setError(result.error || `Could not generate ${layer.name}`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+    } finally {
+      setGeneratingLayerId(null);
     }
   };
 
@@ -244,41 +318,79 @@ export default function AIGeneratorPage() {
                       {layerPrompts.map((layer) => (
                         <div
                           key={layer.id}
-                          className="grid grid-cols-1 md:grid-cols-[150px_1fr_90px_40px] gap-2 rounded-lg border border-royal-500/30 p-3"
+                          className="rounded-lg border border-royal-500/30 p-3 space-y-3"
                         >
-                          <Input
-                            value={layer.name}
-                            onChange={(event) => updateLayerPrompt(layer.id, { name: event.target.value })}
-                            placeholder="Layer"
-                            className="royal-border"
-                          />
-                          <Input
-                            value={layer.prompt}
-                            onChange={(event) => updateLayerPrompt(layer.id, { prompt: event.target.value })}
-                            placeholder="What should this layer generate?"
-                            className="royal-border"
-                          />
-                          <Input
-                            type="number"
-                            min={1}
-                            max={8}
-                            value={layer.traitCount}
-                            onChange={(event) =>
-                              updateLayerPrompt(layer.id, {
-                                traitCount: Math.max(1, Math.min(8, parseInt(event.target.value) || 1)),
-                              })
-                            }
-                            className="royal-border"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeLayerPrompt(layer.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="grid grid-cols-1 md:grid-cols-[140px_1fr_82px_112px_40px] gap-2">
+                            <Input
+                              value={layer.name}
+                              onChange={(event) => updateLayerPrompt(layer.id, { name: event.target.value })}
+                              placeholder="Layer"
+                              className="royal-border"
+                            />
+                            <Input
+                              value={layer.prompt}
+                              onChange={(event) => updateLayerPrompt(layer.id, { prompt: event.target.value })}
+                              placeholder="What should this layer generate?"
+                              className="royal-border"
+                            />
+                            <Input
+                              type="number"
+                              min={1}
+                              max={8}
+                              value={layer.traitCount}
+                              onChange={(event) =>
+                                updateLayerPrompt(layer.id, {
+                                  traitCount: Math.max(1, Math.min(8, parseInt(event.target.value) || 1)),
+                                })
+                              }
+                              className="royal-border"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => handleGenerateLayer(layer)}
+                              disabled={isGenerating || generatingLayerId !== null}
+                              className="royal-border"
+                            >
+                              {generatingLayerId === layer.id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-4 w-4 mr-2" />
+                              )}
+                              Generate
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeLayerPrompt(layer.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          {generatedLayerAssets[layer.id]?.traits.length ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                              {generatedLayerAssets[layer.id].traits.map((trait) => (
+                                <div
+                                  key={trait.id}
+                                  className="overflow-hidden rounded-md border border-royal-500/30 bg-royal-500/10"
+                                >
+                                  <div className="aspect-square bg-black/20">
+                                    <img
+                                      src={trait.preview}
+                                      alt={trait.name}
+                                      className="h-full w-full object-contain"
+                                    />
+                                  </div>
+                                  <div className="truncate px-2 py-1 text-xs text-muted-foreground">
+                                    {trait.name}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>
