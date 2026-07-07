@@ -149,7 +149,7 @@ export default function ContactPage() {
                     rel="noopener noreferrer"
                     className="text-sm text-muted-foreground hover:text-crown transition-colors"
                   >
-                    @thehouseofjoshi_
+                    @thehouseofjoshi
                   </a>
                 </div>
               </div>
