@@ -54,12 +54,22 @@ function extractIpfsCID(url: string | null | undefined): string | null {
   return url.slice(markerIndex + marker.length).split('/')[0] || null;
 }
 
+function getEdgeFunctionUrl(): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
+
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+  }
+
+  return `${supabaseUrl}/functions/v1/generate-layered-art`;
+}
+
 /**
  * Test Edge Function connectivity
  */
 export async function testEdgeFunctionConnectivity(): Promise<{ success: boolean; error?: string }> {
   try {
-    const edgeFunctionUrl = 'https://ewlcanuvurtmzoycwqno.supabase.co/functions/v1/generate-layered-art';
+    const edgeFunctionUrl = getEdgeFunctionUrl();
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
     console.log('Testing connectivity to:', edgeFunctionUrl);
@@ -118,7 +128,7 @@ export async function testEdgeFunctionConnectivity(): Promise<{ success: boolean
  */
 export async function generateLayeredNFT(request: AIGenerationRequest): Promise<AIGenerationResponse> {
   try {
-    const edgeFunctionUrl = 'https://ewlcanuvurtmzoycwqno.supabase.co/functions/v1/generate-layered-art';
+    const edgeFunctionUrl = getEdgeFunctionUrl();
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
     console.log('Calling Edge Function at:', edgeFunctionUrl);
