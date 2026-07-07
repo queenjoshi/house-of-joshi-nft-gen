@@ -106,20 +106,19 @@ export function Header() {
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        {/* Mobile Navigation - Center (Horizontal Scroll) */}
-        <nav className="flex items-center gap-4 flex-1 overflow-x-auto hide-scrollbar-mobile md:hidden">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => useUIStore.getState().setMobileMenuOpen(false)}
-              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors font-medium text-xs whitespace-nowrap flex-shrink-0"
-            >
-              <link.icon className="h-4 w-4" />
-              <span>{link.label}</span>
-            </Link>
-          ))}
-        </nav>
+        {/* Mobile Logo */}
+        <Link href="/" className="flex min-w-0 flex-1 items-center gap-2 md:hidden">
+          <Image
+            src="/joshi-logo.png"
+            alt="Joshi Logo"
+            width={32}
+            height={32}
+            className="h-8 w-8 flex-shrink-0 animate-crown-shine"
+          />
+          <span className="gold-text truncate font-display text-base font-bold">
+            House of Joshi
+          </span>
+        </Link>
 
         {/* Logo - Hidden on Mobile, Left on Desktop */}
         <Link href="/" className="hidden md:flex items-center gap-2 group flex-shrink-0 md:mr-auto">
@@ -193,10 +192,7 @@ export function Header() {
             <ConnectButton />
           </div>
 
-          {/* RainbowKit Connect Button - Mobile (Corner) */}
-          <div className="md:hidden scale-75 origin-right flex-shrink-0">
-            <ConnectButton />
-          </div>
+          <div className="w-9 md:hidden" aria-hidden="true" />
         </div>
       </div>
 

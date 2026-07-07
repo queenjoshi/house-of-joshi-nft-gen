@@ -705,19 +705,19 @@ export default function AIGeneratorPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-6 items-start">
+            <div className="grid min-w-0 grid-cols-1 items-start gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
               {/* Generator Form */}
-              <Card className="royal-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                    <Sparkles className="h-5 w-5 text-crown" />
-                    Create Your AI Layered NFT
+              <Card className="royal-card min-w-0 overflow-hidden">
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="flex min-w-0 items-center gap-2 text-lg leading-6 sm:text-xl">
+                    <Sparkles className="h-5 w-5 flex-shrink-0 text-crown" />
+                    <span className="min-w-0 break-words">Create Your AI Layered NFT</span>
                   </CardTitle>
                   <CardDescription>
                     Generate collection-ready trait layers, pin metadata, then send them into the launchpad.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
                   <div className="space-y-2">
                     <Label htmlFor="prompt">AI Prompt *</Label>
                     <Textarea
@@ -838,20 +838,20 @@ export default function AIGeneratorPage() {
                       {layerPrompts.map((layer) => (
                         <div
                           key={layer.id}
-                          className="rounded-lg border border-royal-500/30 p-3 space-y-3"
+                          className="min-w-0 space-y-3 rounded-lg border border-royal-500/30 p-3"
                         >
-                          <div className="grid grid-cols-1 lg:grid-cols-[140px_minmax(0,1fr)_88px] xl:grid-cols-[140px_minmax(0,1fr)_88px_120px_40px] gap-2">
+                          <div className="grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-[140px_minmax(0,1fr)_88px] xl:grid-cols-[140px_minmax(0,1fr)_88px_120px_40px]">
                             <Input
                               value={layer.name}
                               onChange={(event) => updateLayerPrompt(layer.id, { name: event.target.value })}
                               placeholder="Layer"
-                              className="royal-border"
+                              className="royal-border min-w-0"
                             />
                             <Input
                               value={layer.prompt}
                               onChange={(event) => updateLayerPrompt(layer.id, { prompt: event.target.value })}
                               placeholder="What should this layer generate?"
-                              className="royal-border"
+                              className="royal-border min-w-0"
                             />
                             <Input
                               type="number"
@@ -863,7 +863,7 @@ export default function AIGeneratorPage() {
                                   traitCount: Math.max(1, Math.min(8, parseInt(event.target.value) || 1)),
                                 })
                               }
-                              className="royal-border"
+                              className="royal-border min-w-0"
                             />
                             <Button
                               type="button"
