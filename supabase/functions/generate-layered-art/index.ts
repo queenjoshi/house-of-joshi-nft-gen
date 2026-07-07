@@ -32,6 +32,8 @@ type GeneratedTrait = {
   url: string;
   cid: string;
   rarity: number;
+  hasTransparency?: boolean;
+  qualityWarnings?: string[];
 };
 
 type UploadedAsset = {
@@ -205,8 +207,11 @@ function buildCollectionImagePrompt(
   ].join(". ");
 }
 
-function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], traitsPerLayer = 3): GeneratedLayer[] {
+function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], traitsPerLayer = 3, stylePrompt?: string): GeneratedLayer[] {
   const sourceLayers = requestedLayers?.length ? requestedLayers : defaultLayers;
+  const lockedStyle = stylePrompt?.trim()
+    ? `Locked collection style: ${stylePrompt.trim()}`
+    : "Locked collection style: keep every layer visually consistent in linework, lighting, palette, camera angle, and scale";
 
   return sourceLayers
     .filter((layer) => (layer.name || layer.prompt || "").trim())
@@ -220,6 +225,7 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
         name,
         prompt: [
           `Collection concept and art style: ${prompt}`,
+          lockedStyle,
           `Layer to generate: ${name}`,
           `User direction for this layer: ${layerPrompt}`,
           getLayerIsolationInstructions(name),
@@ -235,6 +241,37 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
     });
 }
 
+function buildTraitName(layerName: string, layerPrompt: string, variantNumber: number): string {
+  const adjectives = ["Royal", "Golden", "Neon", "Crystal", "Shadow", "Ruby", "Cosmic", "Mythic"];
+  const layerWords = layerPrompt
+    .replace(/[^a-zA-Z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 3 && !["only", "with", "background", "transparent", "matching"].includes(word.toLowerCase()));
+  const keyword = layerWords[variantNumber % Math.max(1, layerWords.length)] || layerName;
+  return `${adjectives[(variantNumber - 1) % adjectives.length]} ${keyword} ${layerName}`.replace(/\s+/g, " ").trim();
+}
+
+function inspectPngTransparency(imageBuffer: ArrayBuffer): { hasTransparency: boolean; warnings: string[] } {
+  const bytes = new Uint8Array(imageBuffer);
+  const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+  const isPng = pngSignature.every((byte, index) => bytes[index] === byte);
+
+  if (!isPng) {
+    return {
+      hasTransparency: false,
+      warnings: ["Transparent quality check could not confirm PNG format"],
+    };
+  }
+
+  const colorType = bytes[25];
+  const hasAlphaChannel = colorType === 4 || colorType === 6;
+
+  return {
+    hasTransparency: hasAlphaChannel,
+    warnings: hasAlphaChannel ? [] : ["Layer PNG does not expose an alpha channel"],
+  };
+}
+
 function requireSecret(value: string | undefined, name: string): string {
   if (!value) {
     throw new Error(`Missing Edge Function secret: ${name}`);
@@ -245,7 +282,16 @@ function requireSecret(value: string | undefined, name: string): string {
 
 async function generateImage(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
   if (AI_PROVIDER === "openai") {
-    return generateImageWithOpenAI(prompt, aspectRatio);
+    try {
+      return await generateImageWithOpenAI(prompt, aspectRatio);
+    } catch (error) {
+      if (CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_API_TOKEN) {
+        console.warn("OpenAI image generation failed; falling back to Cloudflare Workers AI:", error);
+        return generateImageWithCloudflare(prompt);
+      }
+
+      throw error;
+    }
   }
 
   if (AI_PROVIDER === "cloudflare") {
@@ -483,6 +529,7 @@ serve(async (req) => {
       dryRun,
       coverPrompt,
       bannerPrompt,
+      stylePrompt,
       generateCollectionImages = true,
       layerPrompts,
       traitsPerLayer,
@@ -515,7 +562,7 @@ serve(async (req) => {
 
     console.log("Starting layered NFT generation for:", prompt);
 
-    const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer);
+    const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer, stylePrompt);
     const generatorLayers = [];
     const previewLayers = [];
     let uploadedCoverImage: UploadedAsset | null = null;
@@ -547,6 +594,14 @@ serve(async (req) => {
           const layerImage = layer.removeBackground
             ? await removeBackground(generatedImage, layer.name)
             : generatedImage;
+          const quality = layer.removeBackground
+            ? inspectPngTransparency(layerImage)
+            : { hasTransparency: false, warnings: [] };
+
+          if (layer.removeBackground && !quality.hasTransparency) {
+            throw new Error(`Transparent quality check failed for ${layer.name}: ${quality.warnings.join(", ")}`);
+          }
+
           const uploadedLayer = await uploadFileToPinata(
             layerImage,
             `${layer.id}-${variantNumber}.png`
@@ -556,10 +611,12 @@ serve(async (req) => {
 
           return {
             id: `${layer.id}-${variantNumber}`,
-            name: `${layer.name} ${variantNumber}`,
+            name: buildTraitName(layer.name, layer.prompt, variantNumber),
             url: uploadedLayer.url,
             cid: uploadedLayer.cid,
             rarity: 100,
+            hasTransparency: quality.hasTransparency,
+            qualityWarnings: quality.warnings,
           };
         })
       );
@@ -607,6 +664,8 @@ serve(async (req) => {
           name: trait.name,
           image: `ipfs://${trait.cid}`,
           rarity: trait.rarity,
+          hasTransparency: trait.hasTransparency,
+          qualityWarnings: trait.qualityWarnings,
         })),
       })),
     };
@@ -645,6 +704,8 @@ serve(async (req) => {
             preview: trait.url,
             rarity: trait.rarity,
             fileType: "image",
+            hasTransparency: trait.hasTransparency,
+            qualityWarnings: trait.qualityWarnings,
           })),
         })),
       }),

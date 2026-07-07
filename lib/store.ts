@@ -120,6 +120,9 @@ export const useGeneratorStore = create<GeneratorState>()((set, get) => ({
 // AI Generated Collection Draft Store
 export interface AIGeneratedCollectionDraft {
   prompt: string;
+  stylePrompt?: string;
+  coverPrompt?: string;
+  bannerPrompt?: string;
   collectionName: string;
   collectionSymbol: string;
   description: string;
@@ -148,6 +151,8 @@ export interface AIGeneratedCollectionDraft {
       preview: string;
       rarity: number;
       fileType: 'image';
+      hasTransparency?: boolean;
+      qualityWarnings?: string[];
     }>;
     isRequired: boolean;
   }>;
@@ -156,7 +161,10 @@ export interface AIGeneratedCollectionDraft {
 
 interface AIGenerationState {
   draft: AIGeneratedCollectionDraft | null;
+  savedDrafts: AIGeneratedCollectionDraft[];
   setDraft: (draft: AIGeneratedCollectionDraft | null) => void;
+  saveDraft: (draft: AIGeneratedCollectionDraft) => void;
+  removeSavedDraft: (createdAt: number) => void;
   clearDraft: () => void;
 }
 
@@ -164,12 +172,23 @@ export const useAIGenerationStore = create<AIGenerationState>()(
   persist(
     (set) => ({
       draft: null,
+      savedDrafts: [],
       setDraft: (draft) => set({ draft }),
+      saveDraft: (draft) => set((state) => ({
+        draft,
+        savedDrafts: [
+          draft,
+          ...state.savedDrafts.filter((saved) => saved.createdAt !== draft.createdAt),
+        ].slice(0, 12),
+      })),
+      removeSavedDraft: (createdAt) => set((state) => ({
+        savedDrafts: state.savedDrafts.filter((saved) => saved.createdAt !== createdAt),
+      })),
       clearDraft: () => set({ draft: null }),
     }),
     {
       name: 'ai-generation-storage',
-      partialize: (state) => ({ draft: state.draft }),
+      partialize: (state) => ({ draft: state.draft, savedDrafts: state.savedDrafts }),
     }
   )
 );

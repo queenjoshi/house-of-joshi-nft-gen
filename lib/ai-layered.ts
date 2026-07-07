@@ -19,6 +19,8 @@ export interface GeneratedTraitAsset {
   preview: string;
   rarity: number;
   fileType: 'image';
+  hasTransparency?: boolean;
+  qualityWarnings?: string[];
 }
 
 export interface GeneratedLayerAsset {
@@ -40,6 +42,7 @@ export interface LayeredMetadata {
 
 export interface AIGenerationRequest {
   prompt: string;
+  stylePrompt?: string;
   coverPrompt?: string;
   bannerPrompt?: string;
   generateCollectionImages?: boolean;

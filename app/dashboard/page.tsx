@@ -12,6 +12,7 @@ import {
   Activity,
   ExternalLink,
   Sparkles,
+  Package,
   Pencil,
   Loader2,
   CheckCircle2,
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { useWalletStore, useCollectionsStore } from '@/lib/store';
+import { useWalletStore, useCollectionsStore, useAIGenerationStore } from '@/lib/store';
 import { getCollections, getUser, updateCollectionByAddress } from '@/lib/supabase';
 import Link from 'next/link';
 
@@ -62,6 +63,8 @@ interface CollectionStats {
 export default function DashboardPage() {
   const { isConnected, address } = useWalletStore();
   const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
+  const savedAIDrafts = useAIGenerationStore((state) => state.savedDrafts);
+  const setAIDraft = useAIGenerationStore((state) => state.setDraft);
   const [userCollections, setUserCollections] = useState<DashboardCollection[]>([]);
   const [isLoadingCollections, setIsLoadingCollections] = useState(true);
   const [stats, setStats] = useState<CollectionStats>({
@@ -435,6 +438,57 @@ export default function DashboardPage() {
 
                 {/* Activity Feed */}
                 <div>
+                  {savedAIDrafts.length ? (
+                    <Card className="royal-card mb-4 md:mb-6">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                          <Package className="h-5 w-5 text-crown" />
+                          Saved AI Kits
+                        </CardTitle>
+                        <CardDescription className="text-xs md:text-sm">
+                          Continue generated layer kits in the launchpad
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {savedAIDrafts.slice(0, 5).map((draft) => (
+                          <div
+                            key={draft.createdAt}
+                            className="rounded-lg border border-royal-500/30 p-2"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md bg-royal-500/10">
+                                {draft.coverImageUrl || draft.imageUrl ? (
+                                  <img
+                                    src={draft.coverImageUrl || draft.imageUrl}
+                                    alt={draft.collectionName}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="m-3 h-6 w-6 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium">{draft.collectionName}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {draft.generatorLayers?.length || 0} layers
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="outline"
+                              className="royal-border mt-2 w-full"
+                              onClick={() => setAIDraft(draft)}
+                            >
+                              <Link href="/launchpad">Use in Launchpad</Link>
+                            </Button>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
                   <Card className="royal-card">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
