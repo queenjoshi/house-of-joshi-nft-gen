@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Wand2, Loader2, Crown } from 'lucide-react';
+import { Download, Loader2, Plus, Sparkles, Trash2, Wand2, Crown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,27 @@ import { Textarea } from '@/components/ui/textarea';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { useAIGenerationStore, useWalletStore } from '@/lib/store';
-import { generateLayeredNFT, testEdgeFunctionConnectivity, type AIGenerationResponse } from '@/lib/ai-layered';
+import { generateLayeredNFT, testEdgeFunctionConnectivity, type AIGenerationResponse, type AILayerPrompt } from '@/lib/ai-layered';
 import Link from 'next/link';
+
+const defaultLayerPrompts: AILayerPrompt[] = [
+  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment, no character', traitCount: 3 },
+  { id: 'body', name: 'Body', prompt: 'character body, pose, outfit base, transparent background', traitCount: 3 },
+  { id: 'face', name: 'Face', prompt: 'face shape and expression, transparent background', traitCount: 3 },
+  { id: 'eyes', name: 'Eyes', prompt: 'distinct expressive eyes, transparent background', traitCount: 3 },
+  { id: 'mouth', name: 'Mouth', prompt: 'mouth expressions, transparent background', traitCount: 3 },
+  { id: 'hair', name: 'Hair', prompt: 'hair styles or head accessories, transparent background', traitCount: 3 },
+  { id: 'dress', name: 'Dress', prompt: 'royal clothing, armor, dress or accessories, transparent background', traitCount: 3 },
+];
+
+function createLayerPrompt(): AILayerPrompt {
+  return {
+    id: crypto.randomUUID(),
+    name: 'Custom',
+    prompt: 'custom trait layer, transparent background',
+    traitCount: 3,
+  };
+}
 
 export default function AIGeneratorPage() {
   const { isConnected } = useWalletStore();
@@ -25,8 +44,43 @@ export default function AIGeneratorPage() {
   const [maxSupply, setMaxSupply] = useState('100');
   const [mintPrice, setMintPrice] = useState('0.01');
   const [royaltyPercentage, setRoyaltyPercentage] = useState('5');
+  const [layerPrompts, setLayerPrompts] = useState<AILayerPrompt[]>(defaultLayerPrompts);
   const [generatedResult, setGeneratedResult] = useState<AIGenerationResponse | null>(null);
   const [error, setError] = useState('');
+
+  const updateLayerPrompt = (id: string, updates: Partial<AILayerPrompt>) => {
+    setLayerPrompts((current) =>
+      current.map((layer) => (layer.id === id ? { ...layer, ...updates } : layer))
+    );
+  };
+
+  const removeLayerPrompt = (id: string) => {
+    setLayerPrompts((current) => current.filter((layer) => layer.id !== id));
+  };
+
+  const downloadMetadata = () => {
+    if (!generatedResult) return;
+
+    const metadata = {
+      collectionName,
+      collectionSymbol,
+      description,
+      maxSupply: parseInt(maxSupply),
+      mintPrice,
+      royaltyPercentage: parseFloat(royaltyPercentage),
+      metadataUrl: generatedResult.metadataUrl,
+      metadataCID: generatedResult.metadataCID,
+      layers: generatedResult.generatorLayers,
+    };
+
+    const blob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${collectionSymbol || 'ai-collection'}-ai-layer-metadata.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleTestConnection = async () => {
     setError('');
@@ -56,6 +110,7 @@ export default function AIGeneratorPage() {
     try {
       const result = await generateLayeredNFT({
         prompt,
+        layerPrompts: layerPrompts.filter((layer) => layer.name.trim() && layer.prompt.trim()),
         collectionName,
         collectionSymbol,
         description,
@@ -88,6 +143,13 @@ export default function AIGeneratorPage() {
           imageCID: result.imageCID || null,
           metadataCID: result.metadataCID || null,
           layers: generatedLayers,
+          generatorLayers: result.generatorLayers?.map((layer) => ({
+            ...layer,
+            traits: layer.traits.map((trait) => ({
+              ...trait,
+              file: null,
+            })),
+          })),
           createdAt: Date.now(),
         });
         setGeneratedResult(result);
@@ -142,7 +204,7 @@ export default function AIGeneratorPage() {
                     Create Your AI Layered NFT
                   </CardTitle>
                   <CardDescription>
-                    Generate one AI artwork, pin its metadata, then deploy it as your collection seed.
+                    Generate collection-ready trait layers, pin metadata, then send them into the launchpad.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -156,6 +218,70 @@ export default function AIGeneratorPage() {
                       rows={4}
                       className="royal-border"
                     />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <Label>Collection Layers</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Each row becomes a launchpad layer with AI-generated trait variants.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLayerPrompts((current) => [...current, createLayerPrompt()])}
+                        className="royal-border"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {layerPrompts.map((layer) => (
+                        <div
+                          key={layer.id}
+                          className="grid grid-cols-1 md:grid-cols-[150px_1fr_90px_40px] gap-2 rounded-lg border border-royal-500/30 p-3"
+                        >
+                          <Input
+                            value={layer.name}
+                            onChange={(event) => updateLayerPrompt(layer.id, { name: event.target.value })}
+                            placeholder="Layer"
+                            className="royal-border"
+                          />
+                          <Input
+                            value={layer.prompt}
+                            onChange={(event) => updateLayerPrompt(layer.id, { prompt: event.target.value })}
+                            placeholder="What should this layer generate?"
+                            className="royal-border"
+                          />
+                          <Input
+                            type="number"
+                            min={1}
+                            max={8}
+                            value={layer.traitCount}
+                            onChange={(event) =>
+                              updateLayerPrompt(layer.id, {
+                                traitCount: Math.max(1, Math.min(8, parseInt(event.target.value) || 1)),
+                              })
+                            }
+                            className="royal-border"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeLayerPrompt(layer.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -252,12 +378,12 @@ export default function AIGeneratorPage() {
                       {isGenerating ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generating AI Art...
+                          Generating Layers...
                         </>
                       ) : (
                         <>
                           <Sparkles className="h-4 w-4 mr-2" />
-                          Generate Layered NFT
+                          Generate Collection Layers
                         </>
                       )}
                     </Button>
@@ -275,7 +401,7 @@ export default function AIGeneratorPage() {
                     <CardHeader>
                       <CardTitle className="text-green-400">✓ Generation Complete!</CardTitle>
                       <CardDescription>
-                        Your AI layered NFT has been generated and uploaded to IPFS
+                        Your AI collection layers have been generated and uploaded to IPFS
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -290,11 +416,13 @@ export default function AIGeneratorPage() {
                       )}
 
                       <div className="space-y-2 text-sm">
-                        {generatedResult.layers?.length ? (
+                        {generatedResult.generatorLayers?.length ? (
                           <div>
                             <span className="text-muted-foreground">Generated Layers:</span>
                             <p className="font-mono text-xs break-all text-amber-400">
-                              {generatedResult.layers.map((layer) => layer.id).join(', ')}
+                              {generatedResult.generatorLayers
+                                .map((layer) => `${layer.name} (${layer.traits.length})`)
+                                .join(', ')}
                             </p>
                           </div>
                         ) : null}
@@ -307,14 +435,25 @@ export default function AIGeneratorPage() {
                         </div>
                       </div>
 
-                      <Button
-                        asChild
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-                      >
-                        <Link href="/ai-mint">
-                          Proceed to Mint
-                        </Link>
-                      </Button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={downloadMetadata}
+                          className="royal-border"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Metadata
+                        </Button>
+                        <Button
+                          asChild
+                          className="bg-amber-500 hover:bg-amber-600 text-white"
+                        >
+                          <Link href="/launchpad">
+                            Use in Launchpad
+                          </Link>
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>

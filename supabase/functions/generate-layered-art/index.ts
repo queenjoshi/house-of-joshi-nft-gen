@@ -14,34 +14,90 @@ type GeneratedLayer = {
   id: string;
   name: string;
   prompt: string;
-  zIndex: number;
+  order: number;
   removeBackground: boolean;
+  traitCount: number;
 };
 
-function buildLayerPlan(prompt: string): GeneratedLayer[] {
-  return [
-    {
-      id: "background",
-      name: "Background",
-      prompt: `${prompt}. Environment and background only, no central character, no portrait subject, rich atmosphere, square NFT background, high detail.`,
-      zIndex: -1,
-      removeBackground: false,
-    },
-    {
-      id: "subject",
-      name: "Main Subject",
-      prompt: `${prompt}. Main character or primary object only, centered full subject, clean edges, simple plain background, high detail collectible NFT art.`,
-      zIndex: 0,
-      removeBackground: true,
-    },
-    {
-      id: "foreground-effects",
-      name: "Foreground Effects",
-      prompt: `${prompt}. Foreground decorative effects only, glowing particles, jewelry highlights, magical accents, no full background, no main character, clean edges.`,
-      zIndex: 1,
-      removeBackground: true,
-    },
-  ];
+type GeneratedTrait = {
+  id: string;
+  name: string;
+  url: string;
+  cid: string;
+  rarity: number;
+};
+
+type RequestedLayer = {
+  id?: string;
+  name?: string;
+  prompt?: string;
+  traitCount?: number;
+};
+
+const defaultLayers: RequestedLayer[] = [
+  {
+    id: "background",
+    name: "Background",
+    prompt: "environment, setting, atmosphere, no central character",
+    traitCount: 3,
+  },
+  {
+    id: "body",
+    name: "Body",
+    prompt: "body silhouette, outfit base, pose, clean transparent layer",
+    traitCount: 3,
+  },
+  {
+    id: "face",
+    name: "Face",
+    prompt: "face shape and expression, clean transparent layer",
+    traitCount: 3,
+  },
+  {
+    id: "eyes",
+    name: "Eyes",
+    prompt: "eyes only, expressive eye traits, clean transparent layer",
+    traitCount: 3,
+  },
+  {
+    id: "hair",
+    name: "Hair",
+    prompt: "hair or head accessory only, clean transparent layer",
+    traitCount: 3,
+  },
+];
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    || crypto.randomUUID();
+}
+
+function shouldRemoveBackground(layerName: string): boolean {
+  return !layerName.toLowerCase().includes("background");
+}
+
+function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], traitsPerLayer = 3): GeneratedLayer[] {
+  const sourceLayers = requestedLayers?.length ? requestedLayers : defaultLayers;
+
+  return sourceLayers
+    .filter((layer) => (layer.name || layer.prompt || "").trim())
+    .map((layer, index) => {
+      const name = (layer.name || `Layer ${index + 1}`).trim();
+      const layerPrompt = (layer.prompt || name).trim();
+      const traitCount = Math.max(1, Math.min(8, layer.traitCount || traitsPerLayer || 3));
+
+      return {
+        id: layer.id || slugify(name),
+        name,
+        prompt: `${prompt}. Generate the ${name} NFT collection layer: ${layerPrompt}. Make it consistent with the collection style, square canvas, high-detail digital collectible art.`,
+        order: index,
+        removeBackground: shouldRemoveBackground(name),
+        traitCount,
+      };
+    });
 }
 
 function requireSecret(value: string | undefined, name: string): string {
@@ -169,7 +225,15 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, collectionName, collectionSymbol, description, dryRun } = await req.json();
+    const {
+      prompt,
+      collectionName,
+      collectionSymbol,
+      description,
+      dryRun,
+      layerPrompts,
+      traitsPerLayer,
+    } = await req.json();
 
     if (!prompt) {
       return new Response(
@@ -198,44 +262,80 @@ serve(async (req) => {
 
     console.log("Starting layered NFT generation for:", prompt);
 
-    const layerPlan = buildLayerPlan(prompt);
-    const layers = [];
+    const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer);
+    const generatorLayers = [];
+    const previewLayers = [];
 
     for (const layer of layerPlan) {
-      console.log(`Generating ${layer.name} layer...`);
-      const generatedImage = await generateImage(layer.prompt);
-      const layerImage = layer.removeBackground
-        ? await removeBackground(generatedImage)
-        : generatedImage;
-      const uploadedLayer = await uploadFileToPinata(layerImage, `${layer.id}.png`);
+      console.log(`Generating ${layer.name} layer with ${layer.traitCount} traits...`);
+      const traits: GeneratedTrait[] = [];
 
-      layers.push({
+      for (let traitIndex = 0; traitIndex < layer.traitCount; traitIndex++) {
+        const variantNumber = traitIndex + 1;
+        const traitPrompt = `${layer.prompt} Variant ${variantNumber}. Distinct from the other variants while preserving the same layer alignment and NFT collection style.`;
+        const generatedImage = await generateImage(traitPrompt);
+        const layerImage = layer.removeBackground
+          ? await removeBackground(generatedImage)
+          : generatedImage;
+        const uploadedLayer = await uploadFileToPinata(
+          layerImage,
+          `${layer.id}-${variantNumber}.png`
+        );
+
+        traits.push({
+          id: `${layer.id}-${variantNumber}`,
+          name: `${layer.name} ${variantNumber}`,
+          url: uploadedLayer.url,
+          cid: uploadedLayer.cid,
+          rarity: 100,
+        });
+
+        console.log(`${layer.name} trait ${variantNumber} uploaded:`, uploadedLayer.url);
+      }
+
+      generatorLayers.push({
         id: layer.id,
         name: layer.name,
-        url: uploadedLayer.url,
-        cid: uploadedLayer.cid,
-        zIndex: layer.zIndex,
+        order: layer.order,
         prompt: layer.prompt,
+        isRequired: true,
+        traits,
       });
 
-      console.log(`${layer.name} layer uploaded:`, uploadedLayer.url);
+      const previewTrait = traits[0];
+      if (previewTrait) {
+        previewLayers.push({
+          id: layer.id,
+          url: previewTrait.url,
+          cid: previewTrait.cid,
+          zIndex: layer.order,
+        });
+      }
     }
 
     const metadata = {
-      name: `${collectionName} #AI`,
+      name: `${collectionName} AI Layer Kit`,
+      symbol: collectionSymbol,
       description: description || `AI-generated layered NFT: ${prompt}`,
-      image: layers.find((layer) => layer.id === "subject")?.url || layers[0]?.url,
+      image: previewLayers[0]?.url,
       composition: {
-        layers: layers.map((layer) => ({
+        layers: previewLayers.map((layer) => ({
           id: layer.id,
           url: `ipfs://${layer.cid}`,
           zIndex: layer.zIndex,
         })),
         blendMode: "normal",
       },
-      attributes: layers.map((layer) => ({
-        trait_type: "AI Layer",
-        value: layer.name,
+      generatorLayers: generatorLayers.map((layer) => ({
+        id: layer.id,
+        name: layer.name,
+        order: layer.order,
+        traits: layer.traits.map((trait) => ({
+          id: trait.id,
+          name: trait.name,
+          image: `ipfs://${trait.cid}`,
+          rarity: trait.rarity,
+        })),
       })),
     };
 
@@ -243,7 +343,7 @@ serve(async (req) => {
     const uploadedMetadata = await uploadJsonToPinata(metadata, `${collectionName}-metadata.json`);
     console.log("Metadata pinned to:", uploadedMetadata.url);
 
-    const previewLayer = layers.find((layer) => layer.id === "subject") || layers[0];
+    const previewLayer = previewLayers[0];
 
     return new Response(
       JSON.stringify({
@@ -253,10 +353,23 @@ serve(async (req) => {
         metadataUrl: uploadedMetadata.url,
         metadataCID: uploadedMetadata.cid,
         ipfsUrl: previewLayer?.url,
-        layers: layers.map((layer) => ({
+        layers: previewLayers.map((layer) => ({
           id: layer.id,
           url: layer.url,
           zIndex: layer.zIndex,
+        })),
+        generatorLayers: generatorLayers.map((layer) => ({
+          id: layer.id,
+          name: layer.name,
+          order: layer.order,
+          isRequired: layer.isRequired,
+          traits: layer.traits.map((trait) => ({
+            id: trait.id,
+            name: trait.name,
+            preview: trait.url,
+            rarity: trait.rarity,
+            fileType: "image",
+          })),
         })),
       }),
       {

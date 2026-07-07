@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -37,7 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { isBaseNetwork, BASE_MAINNET, useCollectionsStore } from '@/lib/store';
+import { isBaseNetwork, BASE_MAINNET, useAIGenerationStore, useCollectionsStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
 import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME, ROYAL_NFT_CONTRACT_NAME, getRoyalNFTSourceCode } from '@/lib/contracts/contract-source';
@@ -220,6 +220,7 @@ export default function CreatePage() {
   const { switchChain } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
   const addDeployedCollection = useCollectionsStore((state) => state.addDeployedCollection);
+  const aiDraft = useAIGenerationStore((state) => state.draft);
   const [currentStep, setCurrentStep] = useState(0);
   const [layers, setLayers] = useState<Layer[]>([]);
   const [collectionDetails, setCollectionDetails] = useState({
@@ -247,6 +248,40 @@ export default function CreatePage() {
   const [copied, setCopied] = useState(false);
 
   const isCorrectNetwork = isBaseNetwork(chainId ?? null);
+
+  useEffect(() => {
+    if (!aiDraft?.generatorLayers?.length || layers.length > 0) return;
+
+    setCollectionDetails({
+      name: aiDraft.collectionName,
+      symbol: aiDraft.collectionSymbol,
+      description: aiDraft.description || `AI-generated NFT collection from prompt: ${aiDraft.prompt}`,
+      maxSupply: aiDraft.maxSupply,
+      mintPrice: aiDraft.mintPrice,
+      royaltyPercentage: aiDraft.royaltyPercentage,
+      bannerImage: null,
+      coverImage: aiDraft.imageUrl || aiDraft.generatorLayers[0]?.traits[0]?.preview || null,
+    });
+
+    setLayers(
+      aiDraft.generatorLayers.map((layer, index) => ({
+        id: layer.id,
+        name: layer.name,
+        order: index,
+        traits: layer.traits.map((trait) => ({
+          id: trait.id,
+          name: trait.name,
+          file: null,
+          preview: trait.preview,
+          rarity: trait.rarity,
+          fileType: trait.fileType,
+        })),
+        isRequired: layer.isRequired,
+      }))
+    );
+
+    setCurrentStep(1);
+  }, [aiDraft, layers.length]);
 
   const addLayer = () => {
     const newLayer: Layer = {

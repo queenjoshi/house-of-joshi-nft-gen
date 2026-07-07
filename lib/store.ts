@@ -135,6 +135,20 @@ export interface AIGeneratedCollectionDraft {
     url: string;
     zIndex: number;
   }>;
+  generatorLayers?: Array<{
+    id: string;
+    name: string;
+    order: number;
+    traits: Array<{
+      id: string;
+      name: string;
+      file: null;
+      preview: string;
+      rarity: number;
+      fileType: 'image';
+    }>;
+    isRequired: boolean;
+  }>;
   createdAt: number;
 }
 

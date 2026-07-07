@@ -6,6 +6,29 @@ export interface Layer {
   zIndex: number;
 }
 
+export interface AILayerPrompt {
+  id: string;
+  name: string;
+  prompt: string;
+  traitCount: number;
+}
+
+export interface GeneratedTraitAsset {
+  id: string;
+  name: string;
+  preview: string;
+  rarity: number;
+  fileType: 'image';
+}
+
+export interface GeneratedLayerAsset {
+  id: string;
+  name: string;
+  order: number;
+  traits: GeneratedTraitAsset[];
+  isRequired: boolean;
+}
+
 export interface LayeredMetadata {
   name: string;
   description: string;
@@ -17,6 +40,8 @@ export interface LayeredMetadata {
 
 export interface AIGenerationRequest {
   prompt: string;
+  layerPrompts?: AILayerPrompt[];
+  traitsPerLayer?: number;
   collectionName: string;
   collectionSymbol: string;
   description: string;
@@ -32,6 +57,7 @@ export interface AIGenerationResponse {
   metadataUrl?: string;
   metadataCID?: string | null;
   layers?: Layer[];
+  generatorLayers?: GeneratedLayerAsset[];
   error?: string;
 }
 
@@ -181,6 +207,15 @@ export async function generateLayeredNFT(request: AIGenerationRequest): Promise<
         ? data.layers.map((layer: Layer) => ({
             ...layer,
             url: ipfsToGatewayUrl(layer.url),
+          }))
+        : undefined,
+      generatorLayers: Array.isArray(data.generatorLayers)
+        ? data.generatorLayers.map((layer: GeneratedLayerAsset) => ({
+            ...layer,
+            traits: layer.traits.map((trait) => ({
+              ...trait,
+              preview: ipfsToGatewayUrl(trait.preview),
+            })),
           }))
         : undefined,
     };
