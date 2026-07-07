@@ -25,7 +25,6 @@ const FOOTER_LINKS = {
     { label: 'Home', href: '/', external: false },
     { label: 'Collections', href: '/collections', external: false },
     { label: 'Launchpad', href: '/launchpad', external: false },
-    { label: 'Referral', href: '/referral', external: false },
     { label: 'Dashboard', href: '/dashboard', external: false },
   ],
   resources: [
@@ -96,7 +95,7 @@ export function Footer() {
                 <DiscordIcon className="h-4 w-4 sm:h-5 sm:w-5" />
               </a>
               <a
-                href="https://instagram.com/thehouseofjoshi_"
+                href="https://www.instagram.com/thehouseofjoshi"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-crown transition-colors"

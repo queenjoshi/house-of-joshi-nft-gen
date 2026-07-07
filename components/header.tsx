@@ -9,7 +9,6 @@ import {
   Sparkles,
   LayoutDashboard,
   Compass,
-  Users,
   Menu,
   X,
   Sun,
@@ -37,7 +36,6 @@ const NAV_LINKS = [
   { href: '/collections', label: 'Collections', icon: Compass },
   { href: '/launchpad', label: 'Launchpad', icon: Sparkles },
   { href: '/ai-generator', label: 'AI Generator', icon: Wand2 },
-  { href: '/referral', label: 'Referral', icon: Users },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
 

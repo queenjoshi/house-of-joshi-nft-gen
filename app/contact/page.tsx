@@ -144,7 +144,7 @@ export default function ContactPage() {
                 <div>
                   <h3 className="font-display font-semibold mb-1">Instagram</h3>
                   <a
-                    href="https://instagram.com/thehouseofjoshi_"
+                    href="https://www.instagram.com/thehouseofjoshi"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-muted-foreground hover:text-crown transition-colors"
