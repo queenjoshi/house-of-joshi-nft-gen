@@ -65,6 +65,16 @@ export default function AIGeneratorPage() {
       });
 
       if (result.success && result.imageUrl && result.metadataUrl) {
+        const generatedLayers = result.layers?.length
+          ? result.layers
+          : [
+              {
+                id: 'main',
+                url: result.imageUrl,
+                zIndex: 0,
+              },
+            ];
+
         setAIDraft({
           prompt,
           collectionName,
@@ -77,13 +87,7 @@ export default function AIGeneratorPage() {
           metadataUrl: result.metadataUrl,
           imageCID: result.imageCID || null,
           metadataCID: result.metadataCID || null,
-          layers: [
-            {
-              id: 'main',
-              url: result.imageUrl,
-              zIndex: 0,
-            },
-          ],
+          layers: generatedLayers,
           createdAt: Date.now(),
         });
         setGeneratedResult(result);
@@ -286,6 +290,15 @@ export default function AIGeneratorPage() {
                       )}
 
                       <div className="space-y-2 text-sm">
+                        {generatedResult.layers?.length ? (
+                          <div>
+                            <span className="text-muted-foreground">Generated Layers:</span>
+                            <p className="font-mono text-xs break-all text-amber-400">
+                              {generatedResult.layers.map((layer) => layer.id).join(', ')}
+                            </p>
+                          </div>
+                        ) : null}
+
                         <div>
                           <span className="text-muted-foreground">Metadata CID:</span>
                           <p className="font-mono text-xs break-all text-amber-400">

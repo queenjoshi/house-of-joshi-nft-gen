@@ -31,6 +31,7 @@ export interface AIGenerationResponse {
   imageCID?: string | null;
   metadataUrl?: string;
   metadataCID?: string | null;
+  layers?: Layer[];
   error?: string;
 }
 
@@ -176,6 +177,12 @@ export async function generateLayeredNFT(request: AIGenerationRequest): Promise<
       imageCID: data.imageCID || extractIpfsCID(data.imageUrl || data.ipfsUrl),
       metadataUrl: data.metadataUrl,
       metadataCID: data.metadataCID || extractIpfsCID(data.metadataUrl),
+      layers: Array.isArray(data.layers)
+        ? data.layers.map((layer: Layer) => ({
+            ...layer,
+            url: ipfsToGatewayUrl(layer.url),
+          }))
+        : undefined,
     };
   } catch (error) {
     console.error('AI generation error:', error);
