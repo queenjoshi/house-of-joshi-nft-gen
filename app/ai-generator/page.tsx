@@ -189,7 +189,7 @@ export default function AIGeneratorPage() {
   const saveAIDraft = useAIGenerationStore((state) => state.saveDraft);
   const savedDrafts = useAIGenerationStore((state) => state.savedDrafts);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationMode, setGenerationMode] = useState<'true-layered' | 'prompt-layers'>('true-layered');
+  const [generationMode, setGenerationMode] = useState<'true-layered' | 'image-to-layers' | 'prompt-layers'>('true-layered');
   const [prompt, setPrompt] = useState('');
   const [referenceImageBase64, setReferenceImageBase64] = useState('');
   const [referenceImagePreview, setReferenceImagePreview] = useState('');
@@ -277,7 +277,7 @@ export default function AIGeneratorPage() {
       const base64 = value.includes(',') ? value.split(',').pop() || '' : value;
       setReferenceImagePreview(value);
       setReferenceImageBase64(base64);
-      setError('Reference image loaded. True Layer Kit will use it for character consistency.');
+      setError('Reference image loaded. Image to Layers can extract layers from it, and True Layer Kit can use it for consistency.');
     };
     reader.onerror = () => setError('Could not read the reference image.');
     reader.readAsDataURL(file);
@@ -450,6 +450,11 @@ export default function AIGeneratorPage() {
       return;
     }
 
+    if (generationMode === 'image-to-layers' && !referenceImageBase64) {
+      setError('Upload a finished character image before using Image to Layers mode.');
+      return;
+    }
+
     setIsGenerating(true);
     setError('');
 
@@ -498,6 +503,11 @@ export default function AIGeneratorPage() {
 
     if (!prompt.trim() || !layer.name.trim() || !layer.prompt.trim()) {
       setError('Add a main prompt and fill in this layer before generating.');
+      return;
+    }
+
+    if (generationMode === 'image-to-layers' && !referenceImageBase64) {
+      setError('Upload a finished character image before generating layers from an image.');
       return;
     }
 
@@ -574,6 +584,11 @@ export default function AIGeneratorPage() {
   const handleRegenerateTrait = async (layer: AILayerPrompt, traitId: string) => {
     if (!prompt.trim() || !layer.name.trim()) {
       setError('Add a main prompt and layer name before regenerating.');
+      return;
+    }
+
+    if (generationMode === 'image-to-layers' && !referenceImageBase64) {
+      setError('Upload a finished character image before regenerating layers from an image.');
       return;
     }
 
@@ -810,7 +825,7 @@ export default function AIGeneratorPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-royal-500/30 p-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-lg border border-royal-500/30 p-2">
                     <Button
                       type="button"
                       variant={generationMode === 'true-layered' ? 'default' : 'outline'}
@@ -821,14 +836,22 @@ export default function AIGeneratorPage() {
                     </Button>
                     <Button
                       type="button"
+                      variant={generationMode === 'image-to-layers' ? 'default' : 'outline'}
+                      onClick={() => setGenerationMode('image-to-layers')}
+                      className={generationMode === 'image-to-layers' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'}
+                    >
+                      Image to Layers
+                    </Button>
+                    <Button
+                      type="button"
                       variant={generationMode === 'prompt-layers' ? 'default' : 'outline'}
                       onClick={() => setGenerationMode('prompt-layers')}
                       className={generationMode === 'prompt-layers' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'}
                     >
                       Prompt Layers
                     </Button>
-                    <p className="sm:col-span-2 text-xs text-muted-foreground px-1">
-                      True Layer Kit uses OpenAI image references so every trait follows one base body rig. Prompt Layers keeps the older provider flow.
+                    <p className="sm:col-span-3 text-xs text-muted-foreground px-1">
+                      True Layer Kit creates or uses a base reference. Image to Layers extracts stackable layers from your uploaded character image. Prompt Layers keeps the older provider flow.
                     </p>
                   </div>
 

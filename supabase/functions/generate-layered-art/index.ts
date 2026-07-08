@@ -48,7 +48,7 @@ type RequestedLayer = {
   traitCount?: number;
 };
 
-type GenerationMode = "true-layered" | "prompt-layers";
+type GenerationMode = "true-layered" | "image-to-layers" | "prompt-layers";
 
 const defaultLayers: RequestedLayer[] = [
   {
@@ -543,6 +543,31 @@ function buildTrueLayerEditPrompt(layer: GeneratedLayer, variantNumber: number):
   ].join(". ");
 }
 
+function buildImageToLayerEditPrompt(layer: GeneratedLayer, variantNumber: number): string {
+  const isBackground = !layer.removeBackground;
+
+  if (isBackground) {
+    return [
+      layer.prompt,
+      `Variant ${variantNumber}`,
+      "Create a background/backplate that matches the uploaded image's art style, lighting, palette, and world",
+      "Do not copy or include the uploaded character, animal, person, creature, body, face, silhouette, clothing, or foreground subject",
+      "Output only the environment/background layer",
+    ].join(". ");
+  }
+
+  return [
+    "Use the uploaded image as the source artwork and alignment reference",
+    "Extract or faithfully recreate only the requested NFT generator layer from the uploaded character",
+    "Preserve the exact canvas size, pose, centerline, scale, head box, eye anchors, mouth anchor, neck, shoulders, and torso position from the uploaded image",
+    layer.prompt,
+    `Variant ${variantNumber}`,
+    "Output only this layer asset on a pure white background for background removal",
+    "Do not output the full completed character",
+    "Do not include unrelated layers, background, shadows, scenery, text, logo, watermark, border, or frame",
+  ].join(". ");
+}
+
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -740,12 +765,21 @@ serve(async (req) => {
 
     console.log("Starting layered NFT generation for:", prompt);
 
-    const resolvedGenerationMode: GenerationMode = generationMode === "prompt-layers" ? "prompt-layers" : "true-layered";
+    const resolvedGenerationMode: GenerationMode =
+      generationMode === "prompt-layers"
+        ? "prompt-layers"
+        : generationMode === "image-to-layers"
+        ? "image-to-layers"
+        : "true-layered";
 
-    if (resolvedGenerationMode === "true-layered" && AI_PROVIDER !== "openai") {
+    if ((resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") && AI_PROVIDER !== "openai") {
       throw new Error(
-        "True Layer Kit mode requires AI_PROVIDER=openai because it uses OpenAI image edits with a shared character reference. Set AI_PROVIDER to openai and OPENAI_API_KEY in Supabase secrets."
+        "True Layer Kit and Image to Layers modes require AI_PROVIDER=openai because they use OpenAI image edits with a shared character reference. Set AI_PROVIDER to openai and OPENAI_API_KEY in Supabase secrets."
       );
+    }
+
+    if (resolvedGenerationMode === "image-to-layers" && (!referenceImageBase64 || typeof referenceImageBase64 !== "string")) {
+      throw new Error("Image to Layers mode requires an uploaded referenceImageBase64 source image.");
     }
 
     const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer, stylePrompt, blockingRules);
@@ -755,9 +789,13 @@ serve(async (req) => {
     let uploadedBannerImage: UploadedAsset | null = null;
     let baseCharacterReference: ArrayBuffer | null = null;
 
-    if (resolvedGenerationMode === "true-layered") {
+    if (resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") {
       if (referenceImageBase64 && typeof referenceImageBase64 === "string") {
-        console.log("Using uploaded base character reference for true layer alignment...");
+        console.log(
+          resolvedGenerationMode === "image-to-layers"
+            ? "Using uploaded source image to extract NFT layers..."
+            : "Using uploaded base character reference for true layer alignment..."
+        );
         baseCharacterReference = base64ToArrayBuffer(cleanBase64Image(referenceImageBase64));
       } else {
         console.log("Generating OpenAI base character reference for true layer alignment...");
@@ -790,7 +828,9 @@ serve(async (req) => {
         Array.from({ length: layer.traitCount }, async (_item, traitIndex): Promise<GeneratedTrait> => {
           const variantNumber = traitIndex + 1;
           const traitPrompt = [
-            resolvedGenerationMode === "true-layered"
+            resolvedGenerationMode === "image-to-layers"
+              ? buildImageToLayerEditPrompt(layer, variantNumber)
+              : resolvedGenerationMode === "true-layered"
               ? buildTrueLayerEditPrompt(layer, variantNumber)
               : layer.prompt,
             resolvedGenerationMode === "prompt-layers"
@@ -800,7 +840,7 @@ serve(async (req) => {
               ? "Distinct from the other variants while preserving the same fixed rig, body shape anchors, layer alignment, and NFT collection style"
               : "Distinct from the other variants while preserving the same reference alignment and NFT collection style",
           ].filter(Boolean).join(". ");
-          const generatedImage = resolvedGenerationMode === "true-layered" && layer.removeBackground && baseCharacterReference
+          const generatedImage = (resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") && layer.removeBackground && baseCharacterReference
             ? await editImageWithOpenAI(baseCharacterReference, traitPrompt)
             : await generateImage(traitPrompt);
           const layerImage = layer.removeBackground

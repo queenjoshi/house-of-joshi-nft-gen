@@ -41,7 +41,7 @@ export interface LayeredMetadata {
 }
 
 export interface AIGenerationRequest {
-  generationMode?: 'true-layered' | 'prompt-layers';
+  generationMode?: 'true-layered' | 'image-to-layers' | 'prompt-layers';
   prompt: string;
   referenceImageBase64?: string;
   blockingRules?: string;
@@ -61,7 +61,7 @@ export interface AIGenerationRequest {
 
 export interface AIGenerationResponse {
   success: boolean;
-  generationMode?: 'true-layered' | 'prompt-layers';
+  generationMode?: 'true-layered' | 'image-to-layers' | 'prompt-layers';
   imageUrl?: string;
   imageCID?: string | null;
   coverImageUrl?: string;

@@ -119,7 +119,7 @@ export const useGeneratorStore = create<GeneratorState>()((set, get) => ({
 
 // AI Generated Collection Draft Store
 export interface AIGeneratedCollectionDraft {
-  generationMode?: 'true-layered' | 'prompt-layers';
+  generationMode?: 'true-layered' | 'image-to-layers' | 'prompt-layers';
   prompt: string;
   blockingRules?: string;
   stylePrompt?: string;
