@@ -10,6 +10,8 @@ const CLOUDFLARE_API_TOKEN = Deno.env.get("CLOUDFLARE_API_TOKEN");
 const CLOUDFLARE_IMAGE_MODEL = Deno.env.get("CLOUDFLARE_IMAGE_MODEL") || "@cf/black-forest-labs/flux-1-schnell";
 const HUGGINGFACE_API_KEY = Deno.env.get("HUGGINGFACE_API_KEY");
 const HUGGINGFACE_IMAGE_MODEL = Deno.env.get("HUGGINGFACE_IMAGE_MODEL") || "stabilityai/stable-diffusion-xl-base-1.0";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_API_KEY");
+const GEMINI_IMAGE_MODEL = Deno.env.get("GEMINI_IMAGE_MODEL") || "gemini-3.1-flash-image";
 const PINATA_JWT = Deno.env.get("PINATA_JWT");
 const REMOVAL_API_KEY = Deno.env.get("REMOVAL_API_KEY");
 
@@ -51,7 +53,7 @@ type RequestedLayer = {
 };
 
 type GenerationMode = "true-layered" | "image-to-layers" | "prompt-layers";
-type ImageProvider = "openai" | "stability" | "cloudflare" | "huggingface";
+type ImageProvider = "openai" | "stability" | "cloudflare" | "huggingface" | "gemini";
 
 const defaultLayers: RequestedLayer[] = [
   {
@@ -351,7 +353,7 @@ function limitPrompt(prompt: string, maxLength: number): string {
 }
 
 function buildProviderPrompt(prompt: string, provider: string): string {
-  if (provider !== "cloudflare" && provider !== "huggingface") {
+  if (provider !== "cloudflare" && provider !== "huggingface" && provider !== "gemini") {
     return prompt;
   }
 
@@ -390,6 +392,7 @@ function normalizeProvider(value: string): ImageProvider | null {
   if (normalized === "stability" || normalized === "stabilityai") return "stability";
   if (normalized === "cloudflare" || normalized === "workers-ai") return "cloudflare";
   if (normalized === "huggingface" || normalized === "hugging-face" || normalized === "hf") return "huggingface";
+  if (normalized === "gemini" || normalized === "google" || normalized === "nano-banana" || normalized === "nanobanana") return "gemini";
   return null;
 }
 
@@ -400,6 +403,7 @@ function configuredProviders(): ImageProvider[] {
       .map((provider) => normalizeProvider(provider))
       .filter((provider): provider is ImageProvider => Boolean(provider))),
     normalizeProvider(AI_PROVIDER),
+    "gemini" as const,
     "openai" as const,
     "stability" as const,
     "huggingface" as const,
@@ -408,6 +412,7 @@ function configuredProviders(): ImageProvider[] {
 
   return [...new Set(requestedProviders.filter((provider): provider is ImageProvider => Boolean(provider)))]
     .filter((provider) => {
+      if (provider === "gemini") return Boolean(GEMINI_API_KEY);
       if (provider === "openai") return Boolean(OPENAI_API_KEY);
       if (provider === "stability") return Boolean(STABILITY_API_KEY);
       if (provider === "huggingface") return Boolean(HUGGINGFACE_API_KEY);
@@ -422,13 +427,14 @@ async function generateImage(prompt: string, aspectRatio = "1:1"): Promise<Array
 
   if (!providers.length) {
     throw new Error(
-      "No AI image provider is configured. Add at least one of OPENAI_API_KEY, STABILITY_API_KEY, HUGGINGFACE_API_KEY, or CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN."
+      "No AI image provider is configured. Add at least one of GEMINI_API_KEY, OPENAI_API_KEY, STABILITY_API_KEY, HUGGINGFACE_API_KEY, or CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN."
     );
   }
 
   for (const provider of providers) {
     try {
       console.log(`Generating image with ${provider}...`);
+      if (provider === "gemini") return await generateImageWithGemini(prompt);
       if (provider === "openai") return await generateImageWithOpenAI(prompt, aspectRatio);
       if (provider === "stability") return await generateImageWithStability(prompt, aspectRatio);
       if (provider === "huggingface") return await generateImageWithHuggingFace(prompt);
@@ -554,6 +560,123 @@ async function generateImageWithHuggingFace(prompt: string): Promise<ArrayBuffer
   throw new Error(`Hugging Face image generation failed: response was not an image (${errorText})`);
 }
 
+function findGeminiImageData(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findGeminiImageData(item);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const outputImage = record.output_image || record.outputImage;
+  if (outputImage && typeof outputImage === "object") {
+    const imageRecord = outputImage as Record<string, unknown>;
+    if (typeof imageRecord.data === "string") return cleanBase64Image(imageRecord.data);
+  }
+
+  if (typeof record.data === "string") {
+    const mimeType = typeof record.mime_type === "string"
+      ? record.mime_type
+      : typeof record.mimeType === "string"
+      ? record.mimeType
+      : "";
+    if (mimeType.startsWith("image/")) return cleanBase64Image(record.data);
+  }
+
+  for (const item of Object.values(record)) {
+    const found = findGeminiImageData(item);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+async function generateImageWithGemini(prompt: string): Promise<ArrayBuffer> {
+  const geminiKey = requireSecret(GEMINI_API_KEY, "GEMINI_API_KEY");
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": geminiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: GEMINI_IMAGE_MODEL,
+      input: [
+        {
+          type: "text",
+          text: buildProviderPrompt(prompt, "gemini"),
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Nano Banana image generation error:", errorText);
+    throw new Error(`Nano Banana image generation failed: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const image = findGeminiImageData(data);
+
+  if (!image) {
+    console.error("Unexpected Nano Banana image response:", JSON.stringify(data));
+    throw new Error("Nano Banana image generation failed: response did not include image data");
+  }
+
+  return base64ToArrayBuffer(image);
+}
+
+type ImageEditProvider = "openai" | "gemini";
+
+function configuredEditProviders(): ImageEditProvider[] {
+  const requestedProviders = [
+    ...((Deno.env.get("AI_PROVIDER_ORDER") || "")
+      .split(",")
+      .map((provider) => normalizeProvider(provider))
+      .filter((provider): provider is ImageProvider => Boolean(provider))),
+    normalizeProvider(AI_PROVIDER),
+    "gemini" as const,
+    "openai" as const,
+  ];
+
+  return [...new Set(requestedProviders)]
+    .filter((provider): provider is ImageEditProvider => provider === "openai" || provider === "gemini")
+    .filter((provider) => {
+      if (provider === "gemini") return Boolean(GEMINI_API_KEY);
+      return Boolean(OPENAI_API_KEY);
+    });
+}
+
+async function editImage(referenceImage: ArrayBuffer, prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
+  const providers = configuredEditProviders();
+  const errors: string[] = [];
+
+  if (!providers.length) {
+    throw new Error(
+      "No AI image edit provider is configured. Add GEMINI_API_KEY or OPENAI_API_KEY for True Layer Kit and Image to Layers modes."
+    );
+  }
+
+  for (const provider of providers) {
+    try {
+      console.log(`Editing reference image with ${provider}...`);
+      if (provider === "gemini") return await editImageWithGemini(referenceImage, prompt);
+      return await editImageWithOpenAI(referenceImage, prompt, aspectRatio);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`${provider} image edit failed; trying next provider if available:`, message);
+      errors.push(`${provider}: ${message}`);
+    }
+  }
+
+  throw new Error(`All configured AI image edit providers failed. ${errors.join(" | ")}`);
+}
+
 async function editImageWithOpenAI(referenceImage: ArrayBuffer, prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
   const openAIKey = requireSecret(OPENAI_API_KEY, "OPENAI_API_KEY");
   const formData = new FormData();
@@ -583,6 +706,58 @@ async function editImageWithOpenAI(referenceImage: ArrayBuffer, prompt: string, 
   if (!image || typeof image !== "string") {
     console.error("Unexpected OpenAI image edit response:", JSON.stringify(data));
     throw new Error("OpenAI image edit failed: response did not include image data");
+  }
+
+  return base64ToArrayBuffer(image);
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+
+  return btoa(binary);
+}
+
+async function editImageWithGemini(referenceImage: ArrayBuffer, prompt: string): Promise<ArrayBuffer> {
+  const geminiKey = requireSecret(GEMINI_API_KEY, "GEMINI_API_KEY");
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": geminiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: GEMINI_IMAGE_MODEL,
+      input: [
+        {
+          type: "text",
+          text: limitPrompt(prompt, 2048),
+        },
+        {
+          type: "image",
+          mime_type: "image/png",
+          data: arrayBufferToBase64(referenceImage),
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Nano Banana image edit error:", errorText);
+    throw new Error(`Nano Banana image edit failed: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const image = findGeminiImageData(data);
+
+  if (!image) {
+    console.error("Unexpected Nano Banana image edit response:", JSON.stringify(data));
+    throw new Error("Nano Banana image edit failed: response did not include image data");
   }
 
   return base64ToArrayBuffer(image);
@@ -852,9 +1027,9 @@ serve(async (req) => {
         ? "image-to-layers"
         : "true-layered";
 
-    if ((resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") && !OPENAI_API_KEY) {
+    if ((resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") && !OPENAI_API_KEY && !GEMINI_API_KEY) {
       throw new Error(
-        "True Layer Kit and Image to Layers modes require OPENAI_API_KEY because they use OpenAI image edits with a shared character reference. Prompt Layers can use the fallback provider chain without OpenAI."
+        "True Layer Kit and Image to Layers modes require GEMINI_API_KEY or OPENAI_API_KEY because they use image edits with a shared character reference. Prompt Layers can use the fallback provider chain without image edits."
       );
     }
 
@@ -878,8 +1053,8 @@ serve(async (req) => {
         );
         baseCharacterReference = base64ToArrayBuffer(cleanBase64Image(referenceImageBase64));
       } else {
-        console.log("Generating OpenAI base character reference for true layer alignment...");
-        baseCharacterReference = await generateImageWithOpenAI(
+        console.log("Generating base character reference for true layer alignment...");
+        baseCharacterReference = await generateImage(
           buildBaseCharacterReferencePrompt(prompt, stylePrompt, blockingRules),
           "1:1"
         );
@@ -921,7 +1096,7 @@ serve(async (req) => {
               : "Distinct from the other variants while preserving the same reference alignment and NFT collection style",
           ].filter(Boolean).join(". ");
           const generatedImage = (resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") && layer.removeBackground && baseCharacterReference
-            ? await editImageWithOpenAI(baseCharacterReference, traitPrompt)
+            ? await editImage(baseCharacterReference, traitPrompt)
             : await generateImage(traitPrompt);
           const layerImage = layer.removeBackground
             ? await removeBackground(generatedImage, layer.name)
