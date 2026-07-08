@@ -248,7 +248,13 @@ function buildCollectionImagePrompt(
   ].join(". ");
 }
 
-function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], traitsPerLayer = 3, stylePrompt?: string): GeneratedLayer[] {
+function buildLayerPlan(
+  prompt: string,
+  requestedLayers?: RequestedLayer[],
+  traitsPerLayer = 3,
+  stylePrompt?: string,
+  blockingRules?: string,
+): GeneratedLayer[] {
   const sourceLayers = requestedLayers?.length ? requestedLayers : defaultLayers;
   const lockedStyle = stylePrompt?.trim()
     ? `Locked collection style: ${stylePrompt.trim()}`
@@ -275,6 +281,7 @@ function buildLayerPlan(prompt: string, requestedLayers?: RequestedLayer[], trai
         prompt: [
           collectionContext,
           lockedStyle,
+          blockingRules?.trim() ? `Global blocking rules: ${blockingRules.trim()}` : "",
           `Layer to generate: ${name}`,
           `User direction for this layer: ${layerPrompt}`,
           getLayerIsolationInstructions(name),
@@ -501,10 +508,11 @@ async function editImageWithOpenAI(referenceImage: ArrayBuffer, prompt: string, 
   return base64ToArrayBuffer(image);
 }
 
-function buildBaseCharacterReferencePrompt(prompt: string, stylePrompt?: string): string {
+function buildBaseCharacterReferencePrompt(prompt: string, stylePrompt?: string, blockingRules?: string): string {
   return [
     `Collection concept: ${prompt}`,
     stylePrompt ? `Locked style: ${stylePrompt}` : "Locked style: consistent NFT collection art",
+    blockingRules?.trim() ? `Blocking rules: ${blockingRules.trim()}` : "",
     "Generate one complete front-facing bust character reference for an NFT layered generator",
     characterRigBlueprint,
     "Include the full base body, head, face, eyes, mouth, hair placeholder silhouette, and outfit placeholder so every later layer can align to this exact reference",
@@ -544,6 +552,10 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   }
 
   return bytes.buffer;
+}
+
+function cleanBase64Image(value: string): string {
+  return value.includes(",") ? value.split(",").pop() || "" : value;
 }
 
 async function generateImageWithCloudflare(prompt: string): Promise<ArrayBuffer> {
@@ -693,6 +705,8 @@ serve(async (req) => {
       coverPrompt,
       bannerPrompt,
       stylePrompt,
+      referenceImageBase64,
+      blockingRules,
       generationMode = "true-layered",
       generateCollectionImages = true,
       layerPrompts,
@@ -734,7 +748,7 @@ serve(async (req) => {
       );
     }
 
-    const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer, stylePrompt);
+    const layerPlan = buildLayerPlan(prompt, layerPrompts, traitsPerLayer, stylePrompt, blockingRules);
     const generatorLayers = [];
     const previewLayers = [];
     let uploadedCoverImage: UploadedAsset | null = null;
@@ -742,11 +756,16 @@ serve(async (req) => {
     let baseCharacterReference: ArrayBuffer | null = null;
 
     if (resolvedGenerationMode === "true-layered") {
-      console.log("Generating OpenAI base character reference for true layer alignment...");
-      baseCharacterReference = await generateImageWithOpenAI(
-        buildBaseCharacterReferencePrompt(prompt, stylePrompt),
-        "1:1"
-      );
+      if (referenceImageBase64 && typeof referenceImageBase64 === "string") {
+        console.log("Using uploaded base character reference for true layer alignment...");
+        baseCharacterReference = base64ToArrayBuffer(cleanBase64Image(referenceImageBase64));
+      } else {
+        console.log("Generating OpenAI base character reference for true layer alignment...");
+        baseCharacterReference = await generateImageWithOpenAI(
+          buildBaseCharacterReferencePrompt(prompt, stylePrompt, blockingRules),
+          "1:1"
+        );
+      }
     }
 
     if (generateCollectionImages) {
@@ -841,6 +860,7 @@ serve(async (req) => {
       image: uploadedCoverImage?.url || previewLayers[0]?.url,
       banner_image: uploadedBannerImage?.url,
       generationMode: resolvedGenerationMode,
+      blockingRules: blockingRules || "",
       composition: {
         layers: previewLayers.map((layer) => ({
           id: layer.id,

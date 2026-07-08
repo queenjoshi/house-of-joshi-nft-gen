@@ -43,6 +43,8 @@ export interface LayeredMetadata {
 export interface AIGenerationRequest {
   generationMode?: 'true-layered' | 'prompt-layers';
   prompt: string;
+  referenceImageBase64?: string;
+  blockingRules?: string;
   stylePrompt?: string;
   coverPrompt?: string;
   bannerPrompt?: string;

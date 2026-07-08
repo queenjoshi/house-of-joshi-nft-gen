@@ -191,6 +191,9 @@ export default function AIGeneratorPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMode, setGenerationMode] = useState<'true-layered' | 'prompt-layers'>('true-layered');
   const [prompt, setPrompt] = useState('');
+  const [referenceImageBase64, setReferenceImageBase64] = useState('');
+  const [referenceImagePreview, setReferenceImagePreview] = useState('');
+  const [blockingRules, setBlockingRules] = useState('No text, no logos, no watermark, no extra characters, no duplicate subjects, no cropped body parts, no random props outside the selected layer. Background must never contain the collection character or animal.');
   const [stylePrompt, setStylePrompt] = useState('');
   const [coverPrompt, setCoverPrompt] = useState('');
   const [bannerPrompt, setBannerPrompt] = useState('');
@@ -260,6 +263,26 @@ export default function AIGeneratorPage() {
     setHasEditedSuggestions(false);
   };
 
+  const handleReferenceImageUpload = (file: File | null) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Upload an image file to use as the collection reference.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === 'string' ? reader.result : '';
+      const base64 = value.includes(',') ? value.split(',').pop() || '' : value;
+      setReferenceImagePreview(value);
+      setReferenceImageBase64(base64);
+      setError('Reference image loaded. True Layer Kit will use it for character consistency.');
+    };
+    reader.onerror = () => setError('Could not read the reference image.');
+    reader.readAsDataURL(file);
+  };
+
   const updateLayerPrompt = (id: string, updates: Partial<AILayerPrompt>) => {
     setHasEditedSuggestions(true);
     setLayerPrompts((current) =>
@@ -287,6 +310,7 @@ export default function AIGeneratorPage() {
       generationMode,
       prompt,
       stylePrompt,
+      blockingRules,
       coverPrompt,
       bannerPrompt,
       collectionName: collectionName || 'AI Generated Collection',
@@ -343,6 +367,7 @@ export default function AIGeneratorPage() {
 
     setPrompt(draft.prompt);
     setGenerationMode(draft.generationMode || 'true-layered');
+    setBlockingRules(draft.blockingRules || blockingRules);
     setStylePrompt(draft.stylePrompt || '');
     setCoverPrompt(draft.coverPrompt || '');
     setBannerPrompt(draft.bannerPrompt || '');
@@ -384,6 +409,7 @@ export default function AIGeneratorPage() {
       mintPrice,
       royaltyPercentage: parseFloat(royaltyPercentage),
       stylePrompt,
+      blockingRules,
       coverPrompt,
       bannerPrompt,
       metadataUrl: generatedResult.metadataUrl,
@@ -431,6 +457,8 @@ export default function AIGeneratorPage() {
       const result = await generateLayeredNFT({
         prompt,
         generationMode,
+        referenceImageBase64,
+        blockingRules,
         stylePrompt,
         coverPrompt,
         bannerPrompt,
@@ -480,6 +508,8 @@ export default function AIGeneratorPage() {
       const result = await generateLayeredNFT({
         prompt,
         generationMode,
+        referenceImageBase64,
+        blockingRules,
         stylePrompt,
         generateCollectionImages: false,
         layerPrompts: [layer],
@@ -554,6 +584,8 @@ export default function AIGeneratorPage() {
       const result = await generateLayeredNFT({
         prompt,
         generationMode,
+        referenceImageBase64,
+        blockingRules,
         stylePrompt,
         generateCollectionImages: false,
         layerPrompts: [{ ...layer, traitCount: 1 }],
@@ -643,6 +675,7 @@ export default function AIGeneratorPage() {
             collectionSymbol,
             description,
             stylePrompt,
+            blockingRules,
             coverPrompt,
             bannerPrompt,
             layers: orderedGeneratedLayers,
@@ -734,6 +767,49 @@ export default function AIGeneratorPage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_180px] gap-3 rounded-lg border border-royal-500/30 p-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="referenceImage">Reference Image</Label>
+                      <Input
+                        id="referenceImage"
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => handleReferenceImageUpload(event.target.files?.[0] || null)}
+                        className="royal-border file:mr-3 file:rounded-md file:border-0 file:bg-amber-500 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Upload one finished character image to lock the collection pose and style before generating layers.
+                      </p>
+                      {referenceImageBase64 ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setReferenceImageBase64('');
+                            setReferenceImagePreview('');
+                          }}
+                          className="royal-border"
+                        >
+                          Remove Reference
+                        </Button>
+                      ) : null}
+                    </div>
+                    {referenceImagePreview ? (
+                      <div className="aspect-square overflow-hidden rounded-md border border-royal-500/30 bg-black/20">
+                        <img
+                          src={referenceImagePreview}
+                          alt="Collection reference"
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid aspect-square place-items-center rounded-md border border-dashed border-royal-500/30 bg-royal-500/5 text-center text-xs text-muted-foreground">
+                        Reference preview
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-royal-500/30 p-2">
                     <Button
                       type="button"
@@ -767,6 +843,21 @@ export default function AIGeneratorPage() {
                         setStylePrompt(e.target.value);
                       }}
                       rows={2}
+                      className="royal-border"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="blockingRules">Blocking Rules</Label>
+                    <Textarea
+                      id="blockingRules"
+                      placeholder="No text, no logos, no extra characters, no subject inside background..."
+                      value={blockingRules}
+                      onChange={(e) => {
+                        setHasEditedSuggestions(true);
+                        setBlockingRules(e.target.value);
+                      }}
+                      rows={3}
                       className="royal-border"
                     />
                   </div>

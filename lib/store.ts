@@ -121,6 +121,7 @@ export const useGeneratorStore = create<GeneratorState>()((set, get) => ({
 export interface AIGeneratedCollectionDraft {
   generationMode?: 'true-layered' | 'prompt-layers';
   prompt: string;
+  blockingRules?: string;
   stylePrompt?: string;
   coverPrompt?: string;
   bannerPrompt?: string;
