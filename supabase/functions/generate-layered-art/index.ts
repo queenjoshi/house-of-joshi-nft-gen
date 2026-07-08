@@ -8,6 +8,8 @@ const AI_PROVIDER = (Deno.env.get("AI_PROVIDER") || "stability").toLowerCase();
 const CLOUDFLARE_ACCOUNT_ID = Deno.env.get("CLOUDFLARE_ACCOUNT_ID");
 const CLOUDFLARE_API_TOKEN = Deno.env.get("CLOUDFLARE_API_TOKEN");
 const CLOUDFLARE_IMAGE_MODEL = Deno.env.get("CLOUDFLARE_IMAGE_MODEL") || "@cf/black-forest-labs/flux-1-schnell";
+const HUGGINGFACE_API_KEY = Deno.env.get("HUGGINGFACE_API_KEY");
+const HUGGINGFACE_IMAGE_MODEL = Deno.env.get("HUGGINGFACE_IMAGE_MODEL") || "stabilityai/stable-diffusion-xl-base-1.0";
 const PINATA_JWT = Deno.env.get("PINATA_JWT");
 const REMOVAL_API_KEY = Deno.env.get("REMOVAL_API_KEY");
 
@@ -49,6 +51,7 @@ type RequestedLayer = {
 };
 
 type GenerationMode = "true-layered" | "image-to-layers" | "prompt-layers";
+type ImageProvider = "openai" | "stability" | "cloudflare" | "huggingface";
 
 const defaultLayers: RequestedLayer[] = [
   {
@@ -348,7 +351,7 @@ function limitPrompt(prompt: string, maxLength: number): string {
 }
 
 function buildProviderPrompt(prompt: string, provider: string): string {
-  if (provider !== "cloudflare") {
+  if (provider !== "cloudflare" && provider !== "huggingface") {
     return prompt;
   }
 
@@ -381,25 +384,63 @@ function buildProviderPrompt(prompt: string, provider: string): string {
   return limitPrompt(prompt, 2048);
 }
 
-async function generateImage(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
-  if (AI_PROVIDER === "openai") {
-    try {
-      return await generateImageWithOpenAI(prompt, aspectRatio);
-    } catch (error) {
-      if (CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_API_TOKEN) {
-        console.warn("OpenAI image generation failed; falling back to Cloudflare Workers AI:", error);
-        return generateImageWithCloudflare(prompt);
-      }
+function normalizeProvider(value: string): ImageProvider | null {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "openai") return "openai";
+  if (normalized === "stability" || normalized === "stabilityai") return "stability";
+  if (normalized === "cloudflare" || normalized === "workers-ai") return "cloudflare";
+  if (normalized === "huggingface" || normalized === "hugging-face" || normalized === "hf") return "huggingface";
+  return null;
+}
 
-      throw error;
+function configuredProviders(): ImageProvider[] {
+  const requestedProviders = [
+    ...((Deno.env.get("AI_PROVIDER_ORDER") || "")
+      .split(",")
+      .map((provider) => normalizeProvider(provider))
+      .filter((provider): provider is ImageProvider => Boolean(provider))),
+    normalizeProvider(AI_PROVIDER),
+    "openai" as const,
+    "stability" as const,
+    "huggingface" as const,
+    "cloudflare" as const,
+  ];
+
+  return [...new Set(requestedProviders.filter((provider): provider is ImageProvider => Boolean(provider)))]
+    .filter((provider) => {
+      if (provider === "openai") return Boolean(OPENAI_API_KEY);
+      if (provider === "stability") return Boolean(STABILITY_API_KEY);
+      if (provider === "huggingface") return Boolean(HUGGINGFACE_API_KEY);
+      if (provider === "cloudflare") return Boolean(CLOUDFLARE_ACCOUNT_ID && CLOUDFLARE_API_TOKEN);
+      return false;
+    });
+}
+
+async function generateImage(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
+  const providers = configuredProviders();
+  const errors: string[] = [];
+
+  if (!providers.length) {
+    throw new Error(
+      "No AI image provider is configured. Add at least one of OPENAI_API_KEY, STABILITY_API_KEY, HUGGINGFACE_API_KEY, or CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN."
+    );
+  }
+
+  for (const provider of providers) {
+    try {
+      console.log(`Generating image with ${provider}...`);
+      if (provider === "openai") return await generateImageWithOpenAI(prompt, aspectRatio);
+      if (provider === "stability") return await generateImageWithStability(prompt, aspectRatio);
+      if (provider === "huggingface") return await generateImageWithHuggingFace(prompt);
+      return await generateImageWithCloudflare(prompt);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`${provider} image generation failed; trying next provider if available:`, message);
+      errors.push(`${provider}: ${message}`);
     }
   }
 
-  if (AI_PROVIDER === "cloudflare") {
-    return generateImageWithCloudflare(prompt);
-  }
-
-  return generateImageWithStability(prompt, aspectRatio);
+  throw new Error(`All configured AI image providers failed. ${errors.join(" | ")}`);
 }
 
 async function generateImageWithStability(prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
@@ -472,6 +513,45 @@ async function generateImageWithOpenAI(prompt: string, aspectRatio = "1:1"): Pro
   }
 
   return base64ToArrayBuffer(image);
+}
+
+async function generateImageWithHuggingFace(prompt: string): Promise<ArrayBuffer> {
+  const huggingFaceKey = requireSecret(HUGGINGFACE_API_KEY, "HUGGINGFACE_API_KEY");
+  const encodedModel = HUGGINGFACE_IMAGE_MODEL
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  const response = await fetch(
+    `https://api-inference.huggingface.co/models/${encodedModel}`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${huggingFaceKey}`,
+        "Content-Type": "application/json",
+        "Accept": "image/png",
+      },
+      body: JSON.stringify({
+        inputs: buildProviderPrompt(prompt, "huggingface"),
+        options: {
+          wait_for_model: true,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Hugging Face image generation error:", errorText);
+    throw new Error(`Hugging Face image generation failed: ${errorText}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.startsWith("image/")) {
+    return await response.arrayBuffer();
+  }
+
+  const errorText = await response.text();
+  throw new Error(`Hugging Face image generation failed: response was not an image (${errorText})`);
 }
 
 async function editImageWithOpenAI(referenceImage: ArrayBuffer, prompt: string, aspectRatio = "1:1"): Promise<ArrayBuffer> {
@@ -772,9 +852,9 @@ serve(async (req) => {
         ? "image-to-layers"
         : "true-layered";
 
-    if ((resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") && AI_PROVIDER !== "openai") {
+    if ((resolvedGenerationMode === "true-layered" || resolvedGenerationMode === "image-to-layers") && !OPENAI_API_KEY) {
       throw new Error(
-        "True Layer Kit and Image to Layers modes require AI_PROVIDER=openai because they use OpenAI image edits with a shared character reference. Set AI_PROVIDER to openai and OPENAI_API_KEY in Supabase secrets."
+        "True Layer Kit and Image to Layers modes require OPENAI_API_KEY because they use OpenAI image edits with a shared character reference. Prompt Layers can use the fallback provider chain without OpenAI."
       );
     }
 
