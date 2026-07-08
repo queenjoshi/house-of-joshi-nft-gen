@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Download, Loader2, Package, Plus, RefreshCw, Save, Shuffle, Sparkles, Trash2, Wand2, Crown } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, Loader2, Package, Plus, RefreshCw, Save, Shuffle, Sparkles, Trash2, Wand2, Crown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,13 +22,11 @@ import Link from 'next/link';
 import { useAccount } from 'wagmi';
 
 const defaultLayerPrompts: AILayerPrompt[] = [
-  { id: 'background', name: 'Background', prompt: 'royal palace or luxury cyberpunk environment only, no animal, no character, no face, no body, no foreground subject', traitCount: 3 },
-  { id: 'body', name: 'Body', prompt: 'body base only: torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes', traitCount: 3 },
-  { id: 'face', name: 'Face', prompt: 'face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body', traitCount: 3 },
-  { id: 'eyes', name: 'Eyes', prompt: 'eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body', traitCount: 3 },
-  { id: 'mouth', name: 'Mouth', prompt: 'mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body', traitCount: 3 },
-  { id: 'hair', name: 'Hair', prompt: 'hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body', traitCount: 3 },
-  { id: 'dress', name: 'Dress', prompt: 'clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background', traitCount: 3 },
+  { id: 'background', name: 'Background', prompt: '10 clean collectible background swatches or scenes only, no character, no animal, no face, no body, no foreground subject', traitCount: 10 },
+  { id: 'skin', name: 'Skin', prompt: '10 full base character skin/body variants on the exact same bust pose, head, face, torso and neck silhouette, no clothes, no hat, no accessories, no background', traitCount: 10 },
+  { id: 'outfit', name: 'Outfit', prompt: '10 shirts, jackets, armor or clothing traits only, fitted to the same torso and neck anchors, no head, no face, no background', traitCount: 10 },
+  { id: 'face', name: 'Face', prompt: '10 face accessory or expression traits such as glasses, beard, moustache, cigar, laser eyes, robot eye; fit the same head anchors, no hat, no outfit, no background', traitCount: 10 },
+  { id: 'hat', name: 'Hat', prompt: '10 hats or headwear traits only, fitted to the same head box, no face, no body, no outfit, no background', traitCount: 10 },
 ];
 
 function createLayerPrompt(): AILayerPrompt {
@@ -52,13 +50,11 @@ function createSuggestedLayerPrompts(mainPrompt: string): AILayerPrompt[] {
     : 'thematic backdrop for the collection; environment only; no animals, no people, no character, no mascot, no face, no body, no foreground subject';
 
   return [
-    { id: 'background', name: 'Background', prompt: backgroundDirection, traitCount: 3 },
-    { id: 'body', name: 'Body', prompt: `${stylePrefix}; body base only, torso, shoulders, arms and neck, fixed centered bust rig, no head, no face, no hair, no clothes`, traitCount: 3 },
-    { id: 'face', name: 'Face', prompt: `${stylePrefix}; face/head skin shape only, fixed head box fitting the body neck, no eyes, no mouth, no hair, no body`, traitCount: 3 },
-    { id: 'eyes', name: 'Eyes', prompt: `${stylePrefix}; eyes and eyebrows only, fixed eye anchors fitting the face, no face skin, no mouth, no hair, no body`, traitCount: 3 },
-    { id: 'mouth', name: 'Mouth', prompt: `${stylePrefix}; mouth and lips only, fixed mouth anchor fitting the face, no face skin, no eyes, no hair, no body`, traitCount: 3 },
-    { id: 'hair', name: 'Hair', prompt: `${stylePrefix}; hair or hairstyle only, fit around the same head box, no face, no eyes, no mouth, no body`, traitCount: 3 },
-    { id: 'dress', name: 'Dress', prompt: `${stylePrefix}; clothing, armor or dress only, fit the same torso/body silhouette, no face, no hair, no background`, traitCount: 3 },
+    { id: 'background', name: 'Background', prompt: `${backgroundDirection}; create 10 distinct backdrop traits like color swatches, simple gradients, rooms, skies, walls, patterns or environments`, traitCount: 10 },
+    { id: 'skin', name: 'Skin', prompt: `${stylePrefix}; create 10 full base character skin/body variants on the exact same front-facing bust pose, same head, ears, face base, neck and torso silhouette; no clothing, no hat, no accessories, no background`, traitCount: 10 },
+    { id: 'outfit', name: 'Outfit', prompt: `${stylePrefix}; create 10 outfit traits such as shirts, jackets, armor, robes or uniforms; clothing only, fitted to the torso and neck anchors; no face, no head, no hat, no background`, traitCount: 10 },
+    { id: 'face', name: 'Face', prompt: `${stylePrefix}; create 10 face accessory or expression traits such as glasses, beard, moustache, eye patch, cigar, laser eyes, robot eye or mouth props; fit the same head anchors; no hat, no outfit, no background`, traitCount: 10 },
+    { id: 'hat', name: 'Hat', prompt: `${stylePrefix}; create 10 hat or headwear traits such as cap, crown, helmet, cowboy hat, captain hat or beanie; headwear only, fitted to the same head box; no face, no outfit, no background`, traitCount: 10 },
   ];
 }
 
@@ -74,6 +70,44 @@ function createBannerPrompt(mainPrompt: string) {
   return concept
     ? `Wide NFT drop banner for ${concept}, cinematic horizontal composition, no text or logo`
     : 'Wide NFT drop banner for the collection, cinematic horizontal composition, no text or logo';
+}
+
+function createCollectionName(mainPrompt: string) {
+  const words = summarizeConcept(mainPrompt)
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+
+  return words.length ? `${words.join(' ')} Collection` : 'AI Generated Collection';
+}
+
+function createCollectionSymbol(name: string) {
+  const symbol = name
+    .replace(/collection/gi, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 6);
+
+  return symbol || 'AIGEN';
+}
+
+function safeFolderName(value: string, fallback: string) {
+  const cleaned = value
+    .trim()
+    .replace(/[^a-z0-9 -]+/gi, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 48);
+
+  return cleaned || fallback;
+}
+
+function safeFileName(value: string, fallback: string) {
+  return safeFolderName(value, fallback).replace(/\s+/g, '-').toLowerCase();
 }
 
 type SampleComposition = {
@@ -253,6 +287,14 @@ export default function AIGeneratorPage() {
         : []
     )
   );
+
+  const generatedTraitCount = orderedGeneratedLayers.reduce((sum, layer) => sum + layer.traits.length, 0);
+  const readyStepCount = [
+    prompt.trim().length > 0,
+    orderedGeneratedLayers.length > 0,
+    sampleCompositions.length > 0,
+    Boolean(generatedResult?.generatorLayers?.length),
+  ].filter(Boolean).length;
 
   const applyPromptSuggestions = () => {
     const concept = summarizeConcept(prompt);
@@ -445,10 +487,16 @@ export default function AIGeneratorPage() {
       return;
     }
 
-    if (!prompt.trim() || !collectionName.trim() || !collectionSymbol.trim()) {
-      setError('Please fill in all required fields');
+    if (!prompt.trim()) {
+      setError('Write a main prompt first. Example: cyberpunk cats with royal jackets, clean collectible art.');
       return;
     }
+
+    const resolvedCollectionName = collectionName.trim() || createCollectionName(prompt);
+    const resolvedCollectionSymbol = collectionSymbol.trim() || createCollectionSymbol(resolvedCollectionName);
+
+    if (!collectionName.trim()) setCollectionName(resolvedCollectionName);
+    if (!collectionSymbol.trim()) setCollectionSymbol(resolvedCollectionSymbol);
 
     if (generationMode === 'image-to-layers' && !referenceImageBase64) {
       setError('Upload a finished character image before using Image to Layers mode.');
@@ -469,8 +517,8 @@ export default function AIGeneratorPage() {
         bannerPrompt,
         generateCollectionImages: true,
         layerPrompts: layerPrompts.filter((layer) => layer.name.trim() && layer.prompt.trim()),
-        collectionName,
-        collectionSymbol,
+        collectionName: resolvedCollectionName,
+        collectionSymbol: resolvedCollectionSymbol,
         description,
         maxSupply: parseInt(maxSupply),
         mintPrice,
@@ -704,7 +752,7 @@ export default function AIGeneratorPage() {
             const response = await fetch(trait.preview);
             if (!response.ok) throw new Error(`Could not download ${trait.name}`);
             files.push({
-              path: `${layer.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/${trait.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`,
+              path: `${safeFolderName(layer.name, 'Layer')}/${safeFileName(trait.name, 'trait')}.png`,
               bytes: new Uint8Array(await response.arrayBuffer()),
             });
           })
@@ -742,7 +790,7 @@ export default function AIGeneratorPage() {
               AI Layered NFT Generator
             </h1>
             <p className="text-muted-foreground text-sm md:text-base">
-              Create stunning layered NFTs using AI with parallax effects
+              Turn one prompt or reference image into stackable NFT trait folders for the Launchpad.
             </p>
           </motion.div>
 
@@ -770,16 +818,47 @@ export default function AIGeneratorPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 px-4 pb-4 pt-0 sm:px-6 sm:pb-6">
+                  <div className="grid gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 sm:grid-cols-4">
+                    {[
+                      ['1', 'Write prompt', prompt.trim() ? 'Ready' : 'Describe your collection'],
+                      ['2', 'Generate layers', orderedGeneratedLayers.length ? `${orderedGeneratedLayers.length} layers` : 'Use all layers or one row'],
+                      ['3', 'Preview samples', sampleCompositions.length ? `${sampleCompositions.length} samples` : 'Check stacked NFTs'],
+                      ['4', 'Launch', generatedResult?.generatorLayers?.length ? 'Ready for Launchpad' : 'Save or export kit'],
+                    ].map(([step, title, detail], index) => (
+                      <div
+                        key={step}
+                        className={`rounded-md border p-2 ${
+                          index < readyStepCount
+                            ? 'border-green-500/30 bg-green-500/10 text-green-200'
+                            : 'border-royal-500/20 bg-black/10 text-muted-foreground'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 text-xs font-medium">
+                          {index < readyStepCount ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <span className="grid h-4 w-4 place-items-center rounded-full border border-current text-[10px]">{step}</span>
+                          )}
+                          {title}
+                        </div>
+                        <p className="mt-1 text-[11px]">{detail}</p>
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="prompt">AI Prompt *</Label>
+                    <Label htmlFor="prompt">Main Collection Prompt *</Label>
                     <Textarea
                       id="prompt"
-                      placeholder="A majestic dragon with golden scales flying over a crystal castle at sunset, digital art style..."
+                      placeholder="Example: cute cyberpunk cats, royal streetwear, clean 2D collectible art, front-facing bust, bold outlines"
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       rows={4}
                       className="royal-border"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Start here. The app will suggest a classic generator kit: Background, Skin, Outfit, Face, and Hat.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_180px] gap-3 rounded-lg border border-royal-500/30 p-3">
@@ -825,33 +904,42 @@ export default function AIGeneratorPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-lg border border-royal-500/30 p-2">
+                  <div className="grid grid-cols-1 gap-2 rounded-lg border border-royal-500/30 p-2 sm:grid-cols-3">
                     <Button
                       type="button"
                       variant={generationMode === 'true-layered' ? 'default' : 'outline'}
                       onClick={() => setGenerationMode('true-layered')}
-                      className={generationMode === 'true-layered' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'}
+                      className={`h-auto min-h-16 flex-col items-start justify-start gap-1 whitespace-normal text-left ${
+                        generationMode === 'true-layered' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'
+                      }`}
                     >
-                      True Layer Kit
+                      <span>True Layer Kit</span>
+                      <span className="text-[11px] font-normal opacity-80">Best for new AI collections</span>
                     </Button>
                     <Button
                       type="button"
                       variant={generationMode === 'image-to-layers' ? 'default' : 'outline'}
                       onClick={() => setGenerationMode('image-to-layers')}
-                      className={generationMode === 'image-to-layers' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'}
+                      className={`h-auto min-h-16 flex-col items-start justify-start gap-1 whitespace-normal text-left ${
+                        generationMode === 'image-to-layers' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'
+                      }`}
                     >
-                      Image to Layers
+                      <span>Image to Layers</span>
+                      <span className="text-[11px] font-normal opacity-80">Use one finished reference</span>
                     </Button>
                     <Button
                       type="button"
                       variant={generationMode === 'prompt-layers' ? 'default' : 'outline'}
                       onClick={() => setGenerationMode('prompt-layers')}
-                      className={generationMode === 'prompt-layers' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'}
+                      className={`h-auto min-h-16 flex-col items-start justify-start gap-1 whitespace-normal text-left ${
+                        generationMode === 'prompt-layers' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'royal-border'
+                      }`}
                     >
-                      Prompt Layers
+                      <span>Prompt Layers</span>
+                      <span className="text-[11px] font-normal opacity-80">Fallback provider mode</span>
                     </Button>
                     <p className="sm:col-span-3 text-xs text-muted-foreground px-1">
-                      True Layer Kit creates or uses a base reference. Image to Layers extracts stackable layers from your uploaded character image. Prompt Layers keeps the older provider flow.
+                      New users should choose True Layer Kit. Use Image to Layers only when you upload a finished character first.
                     </p>
                   </div>
 
@@ -922,7 +1010,7 @@ export default function AIGeneratorPage() {
                       <div className="min-w-0">
                         <Label>Collection Layers</Label>
                         <p className="text-xs text-muted-foreground">
-                          Each row becomes a launchpad layer with AI-generated trait variants.
+                          Match the classic generator format: Background, Skin, Outfit, Face, Hat, or add your own layer.
                         </p>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -974,11 +1062,11 @@ export default function AIGeneratorPage() {
                             <Input
                               type="number"
                               min={1}
-                              max={8}
+                              max={12}
                               value={layer.traitCount}
                               onChange={(event) =>
                                 updateLayerPrompt(layer.id, {
-                                  traitCount: Math.max(1, Math.min(8, parseInt(event.target.value) || 1)),
+                                  traitCount: Math.max(1, Math.min(12, parseInt(event.target.value) || 1)),
                                 })
                               }
                               className="royal-border min-w-0"
@@ -1037,6 +1125,7 @@ export default function AIGeneratorPage() {
                                       className="royal-border h-8 text-xs"
                                       aria-label={`${trait.name} trait name`}
                                     />
+                                    <div className="text-[11px] text-muted-foreground">Rarity weight</div>
                                     <div className="grid grid-cols-[1fr_34px] gap-1">
                                       <Input
                                         type="number"
@@ -1058,6 +1147,7 @@ export default function AIGeneratorPage() {
                                         onClick={() => handleRegenerateTrait(layer, trait.id)}
                                         disabled={isGenerating || generatingLayerId !== null}
                                         className="royal-border h-8 w-8"
+                                        title="Regenerate this trait only"
                                       >
                                         {generatingLayerId === `${layer.id}:${trait.id}` ? (
                                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1084,10 +1174,10 @@ export default function AIGeneratorPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="collectionName">Collection Name *</Label>
+                      <Label htmlFor="collectionName">Collection Name</Label>
                       <Input
                         id="collectionName"
-                        placeholder="My Dragon Collection"
+                        placeholder="Auto-filled from prompt if empty"
                         value={collectionName}
                         onChange={(e) => setCollectionName(e.target.value)}
                         className="royal-border"
@@ -1095,10 +1185,10 @@ export default function AIGeneratorPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="collectionSymbol">Symbol *</Label>
+                      <Label htmlFor="collectionSymbol">Symbol</Label>
                       <Input
                         id="collectionSymbol"
-                        placeholder="DRGN"
+                        placeholder="Auto-filled"
                         value={collectionSymbol}
                         onChange={(e) => setCollectionSymbol(e.target.value)}
                         className="royal-border uppercase"
@@ -1181,7 +1271,7 @@ export default function AIGeneratorPage() {
                       ) : (
                         <>
                           <Sparkles className="h-4 w-4 mr-2" />
-                          Generate Collection Layers
+                          Generate Full Layer Kit
                         </>
                       )}
                     </Button>
@@ -1319,6 +1409,21 @@ export default function AIGeneratorPage() {
                       </div>
 
                       <div className="space-y-2 text-sm">
+                        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                          <div className="rounded-md border border-royal-500/30 bg-black/20 p-2">
+                            <div className="text-lg font-bold text-amber-400">{orderedGeneratedLayers.length}</div>
+                            <div className="text-muted-foreground">Layers</div>
+                          </div>
+                          <div className="rounded-md border border-royal-500/30 bg-black/20 p-2">
+                            <div className="text-lg font-bold text-amber-400">{generatedTraitCount}</div>
+                            <div className="text-muted-foreground">Traits</div>
+                          </div>
+                          <div className="rounded-md border border-royal-500/30 bg-black/20 p-2">
+                            <div className="text-lg font-bold text-amber-400">{sampleCompositions.length}</div>
+                            <div className="text-muted-foreground">Samples</div>
+                          </div>
+                        </div>
+
                         {generatedResult?.generatorLayers?.length ? (
                           <div>
                             <span className="text-muted-foreground">Generated Layers:</span>
@@ -1349,9 +1454,9 @@ export default function AIGeneratorPage() {
                           {isDownloadingZip ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           ) : (
-                            <Package className="h-4 w-4 mr-2" />
+                          <Package className="h-4 w-4 mr-2" />
                           )}
-                          Download ZIP
+                          Download Layer Folders
                         </Button>
                         <Button
                           type="button"
@@ -1370,9 +1475,12 @@ export default function AIGeneratorPage() {
                           className="bg-amber-500 hover:bg-amber-600 text-white"
                         >
                           <Link href="/launchpad">
-                            Use in Launchpad
+                            Continue to Launchpad
                           </Link>
                         </Button>
+                        <p className="text-center text-xs text-muted-foreground">
+                          Launchpad will open with this AI kit loaded so you can generate previews and deploy.
+                        </p>
                       </div>
                     </CardContent>
                   </Card>

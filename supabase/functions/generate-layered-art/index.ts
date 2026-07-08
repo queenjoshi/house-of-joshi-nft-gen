@@ -59,32 +59,32 @@ const defaultLayers: RequestedLayer[] = [
   {
     id: "background",
     name: "Background",
-    prompt: "environment, setting, atmosphere only",
-    traitCount: 3,
+    prompt: "clean collectible background swatches, simple gradients, rooms, skies, walls, patterns or environments only; no subject",
+    traitCount: 10,
   },
   {
-    id: "body",
-    name: "Body",
-    prompt: "body and neck base only, no head, no face, no hair, no clothing accessories",
-    traitCount: 3,
+    id: "skin",
+    name: "Skin",
+    prompt: "full base character skin/body variants on the exact same bust pose, head, face base, neck and torso silhouette; no clothes, hat, accessories or background",
+    traitCount: 10,
+  },
+  {
+    id: "outfit",
+    name: "Outfit",
+    prompt: "shirts, jackets, armor, robes, uniforms or clothing traits only, fitted to the torso and neck anchors; no face, head, hat or background",
+    traitCount: 10,
   },
   {
     id: "face",
     name: "Face",
-    prompt: "face skin and head shape only, no eyes, no mouth, no hair, no body",
-    traitCount: 3,
+    prompt: "face accessories or expression overlays such as glasses, beard, moustache, eye patch, cigar, laser eyes, robot eye or mouth props; no hat, outfit or background",
+    traitCount: 10,
   },
   {
-    id: "eyes",
-    name: "Eyes",
-    prompt: "eyes and eyebrows only, no face, no hair, no mouth, no body",
-    traitCount: 3,
-  },
-  {
-    id: "hair",
-    name: "Hair",
-    prompt: "hair only, no face, no eyes, no body, no background",
-    traitCount: 3,
+    id: "hat",
+    name: "Hat",
+    prompt: "hats or headwear traits only, fitted to the same head box; no face, body, outfit or background",
+    traitCount: 10,
   },
 ];
 
@@ -152,21 +152,31 @@ function getLayerIsolationInstructions(layerName: string): string {
     ].join(". ");
   }
 
-  if (normalizedName.includes("body")) {
+  if (normalizedName.includes("skin") || normalizedName.includes("base") || normalizedName.includes("body")) {
     return [
       ...sharedLayerRules,
-      "Generate only the character body base, shoulders, arms, torso, and neck using the rig anchors",
-      "Body must define the base silhouette that face, hair, dress, eyes, and mouth will fit",
-      "Do not include head, face, eyes, mouth, hair, clothes, dress, accessories, or background",
+      "Generate the full base character skin layer like a classic NFT generator Skin layer",
+      "Include the same head, ears, nose, face base, neck, shoulders, arms, torso, and skin/fur color variation on every trait",
+      "Skin must define the base silhouette that outfit, face accessories, hair, and hat will fit",
+      "Do not include clothing, hats, glasses, props, jewelry, scenery, text, logo, or background",
+    ].join(". ");
+  }
+
+  if (normalizedName.includes("hat") || normalizedName.includes("cap") || normalizedName.includes("headwear")) {
+    return [
+      ...sharedLayerRules,
+      "Generate only hat, cap, crown, helmet, hood, beanie, cowboy hat, captain hat, or headwear traits",
+      "Headwear must fit the exact head box and sit above the Skin layer without changing the face or body",
+      "Do not include face, body, outfit, background, scenery, text, logo, or watermark",
     ].join(". ");
   }
 
   if (normalizedName.includes("face") || normalizedName.includes("head")) {
     return [
       ...sharedLayerRules,
-      "Generate only the face/head skin shape and expression base inside the exact head bounding box",
-      "Face must align to the neck and body silhouette anchors",
-      "Do not include eyes, eyebrows, mouth, teeth, hair, hat, neck, body, clothing, accessories, or background",
+      "Generate only face detail, expression, eye, mouth, beard, glasses, cigar, laser eye, robot eye, mask, or facial accessory traits",
+      "Face traits must align to the exact head, eye, and mouth anchors from the base Skin layer",
+      "Do not include hat, outfit, torso, full body skin, scenery, text, logo, or background",
     ].join(". ");
   }
 
@@ -270,7 +280,7 @@ function buildLayerPlan(
     .map((layer, index) => {
       const name = (layer.name || `Layer ${index + 1}`).trim();
       const layerPrompt = (layer.prompt || name).trim();
-      const traitCount = Math.max(1, Math.min(8, layer.traitCount || traitsPerLayer || 3));
+      const traitCount = Math.max(1, Math.min(12, layer.traitCount || traitsPerLayer || 3));
       const isBackground = isBackgroundLayer(name);
       const collectionContext = isBackground
         ? [
