@@ -682,6 +682,13 @@ export function getRoyalNFTSourceCode(): string {
 // Factory ABI for createCollection function
 export const FACTORY_ABI = [
   {
+    name: 'deploymentFee',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
     name: 'createCollection',
     type: 'function',
     stateMutability: 'payable',
@@ -713,6 +720,16 @@ export const FACTORY_ABI = [
 
 // RoyalNFT ABI for minting
 export const ROYAL_NFT_ABI = [
+  ...(["name", "symbol", "contractURI"] as const).map((name) => ({
+    inputs: [], name,
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view" as const, type: "function" as const,
+  })),
+  ...(["maxSupply", "maxMintPerWallet", "mintStartTime", "mintEndTime"] as const).map((name) => ({
+    inputs: [], name,
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view" as const, type: "function" as const,
+  })),
   {
     inputs: [
       { internalType: "uint256", name: "quantity", type: "uint256" },
@@ -790,7 +807,7 @@ export async function deployCollection(
   client: WalletClient
 ): Promise<DeployedCollectionResult> {
   const { parseEther, createPublicClient, http } = await import('viem');
-  const { CONTRACTS } = await import('@/lib/config');
+  const { getFactoryAddress } = await import('@/lib/config');
   const address = creatorAddress as `0x${string}`;
   const chainId = client.chain?.id;
 
@@ -798,8 +815,20 @@ export async function deployCollection(
     throw new Error('Please switch your wallet to Base or Base Sepolia before deploying.');
   }
 
-  // Set deployment fee to 0.0001 ETH
-  const deploymentFeeWei = parseEther('0.0001');
+  const factoryAddress = getFactoryAddress(chainId);
+  if (!factoryAddress) {
+    throw new Error(`HOJNFTGen is not configured for chain ${chainId}.`);
+  }
+
+  const publicRpcUrl = chainId === 84532
+    ? 'https://sepolia.base.org'
+    : 'https://mainnet.base.org';
+  const publicClient = createPublicClient({ transport: http(publicRpcUrl) });
+  const deploymentFeeWei = await publicClient.readContract({
+    address: factoryAddress,
+    abi: FACTORY_ABI,
+    functionName: 'deploymentFee',
+  });
 
   // Prepare collection parameters
   const collectionParams = {
@@ -821,7 +850,7 @@ export async function deployCollection(
 
   // Send transaction
   const hash = await client.writeContract({
-    address: CONTRACTS.FACTORY as `0x${string}`,
+    address: factoryAddress,
     abi: FACTORY_ABI,
     functionName: 'createCollection',
     args: [collectionParams],
@@ -831,13 +860,6 @@ export async function deployCollection(
   });
 
   // Wait for transaction confirmation
-  const publicRpcUrl = chainId === 84532
-    ? 'https://sepolia.base.org'
-    : 'https://mainnet.base.org';
-  const publicClient = createPublicClient({
-    transport: http(publicRpcUrl)
-  });
-
   const receipt = await publicClient.waitForTransactionReceipt({
     hash: hash as `0x${string}`,
   });
@@ -850,7 +872,7 @@ export async function deployCollection(
   let deployedCollectionAddress: string | null = null;
   if (receipt.logs && receipt.logs.length > 0) {
     for (const log of receipt.logs) {
-      if (log.address?.toLowerCase() === CONTRACTS.FACTORY.toLowerCase()) {
+      if (log.address?.toLowerCase() === factoryAddress.toLowerCase()) {
         if (log.topics && log.topics.length >= 3 && log.topics[2]) {
           deployedCollectionAddress = '0x' + log.topics[2].slice(-40);
           break;

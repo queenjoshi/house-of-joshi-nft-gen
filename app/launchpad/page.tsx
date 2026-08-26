@@ -21,6 +21,7 @@ import {
   Loader2,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
   Copy,
   Check,
   Rocket,
@@ -40,11 +41,17 @@ import { Footer } from '@/components/footer';
 import { isBaseNetwork, BASE_MAINNET, useAIGenerationStore, useCollectionsStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
-import { COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
+import { COMPILER_VERSION, CONTRACT_NAME, FACTORY_ABI } from '@/lib/contracts/contract-source';
 import { serializeVerificationParams, verifyDeployedContract } from '@/lib/contract-verification';
-import { CONTRACTS } from '@/lib/config';
+import { getFactoryAddress } from '@/lib/config';
 import { ModelViewer } from '@/components/model-viewer';
 import { upsertUser, createCollection as createSupabaseCollection, updateCollectionByAddress } from '@/lib/supabase';
+import {
+  createGenerationPlan,
+  simulateGeneration,
+  type GenerationPlan,
+  type GenerationSimulation,
+} from '@/lib/generator-engine';
 
 interface Layer {
   id: string;
@@ -66,15 +73,27 @@ interface Trait {
 type DeployStatus = 'idle' | 'deploying' | 'deployed' | 'verifying' | 'verified' | 'error';
 
 const STEPS = [
-  { id: 'details', label: 'Collection Details', icon: Crown },
-  { id: 'layers', label: 'Layer Setup', icon: Layers },
-  { id: 'generate', label: 'Generate & Preview', icon: Sparkles },
-  { id: 'deploy', label: 'Deploy', icon: ArrowRight },
+  { id: 'details', label: 'Details', description: 'Name and sale settings', icon: Crown },
+  { id: 'layers', label: 'Layers', description: 'Upload traits and rarity', icon: Layers },
+  { id: 'generate', label: 'Preview', description: 'Review combinations', icon: Sparkles },
+  { id: 'deploy', label: 'Deploy', description: 'Create your contract', icon: Rocket },
 ];
 
-// Generate a random NFT by picking one trait from each layer
-function generateRandomNFT(layers: Layer[]): string[] {
-  const picks: string[] = [];
+const STARTER_LAYER_NAMES = ['Background', 'Base', 'Outfit', 'Face', 'Headwear'];
+
+function createStarterLayers(): Layer[] {
+  return STARTER_LAYER_NAMES.map((name, order) => ({
+    id: `starter-${name.toLowerCase()}`,
+    name,
+    order,
+    traits: [],
+    isRequired: true,
+  }));
+}
+
+// Generate a weighted random NFT by picking one trait from each layer.
+function generateRandomNFT(layers: Layer[]): { traitUrls: string[]; signature: string } {
+  const picks: Trait[] = [];
   for (const layer of layers) {
     if (layer.traits.length === 0) continue;
     // Weighted random based on rarity
@@ -83,45 +102,16 @@ function generateRandomNFT(layers: Layer[]): string[] {
     for (const trait of layer.traits) {
       rand -= trait.rarity;
       if (rand <= 0) {
-        picks.push(trait.preview);
+        picks.push(trait);
         break;
       }
     }
   }
-  return picks;
+  return {
+    traitUrls: picks.map((trait) => trait.preview),
+    signature: picks.map((trait) => trait.id).join(':'),
+  };
 }
-
-// Factory ABI for createCollection function
-const FACTORY_ABI = [
-  {
-    name: 'createCollection',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [
-      {
-        name: 'p',
-        type: 'tuple',
-        components: [
-          { name: 'name', type: 'string' },
-          { name: 'symbol', type: 'string' },
-          { name: 'contractURI', type: 'string' },
-          { name: 'baseURI', type: 'string' },
-          { name: 'unrevealedURI', type: 'string' },
-          { name: 'maxSupply', type: 'uint256' },
-          { name: 'mintPrice', type: 'uint256' },
-          { name: 'maxMintPerWallet', type: 'uint256' },
-          { name: 'mintStart', type: 'uint64' },
-          { name: 'mintEnd', type: 'uint64' },
-          { name: 'revealTime', type: 'uint64' },
-          { name: 'royaltyReceiver', type: 'address' },
-          { name: 'royaltyBps', type: 'uint96' },
-          { name: 'allowlistRoot', type: 'bytes32' },
-        ],
-      },
-    ],
-    outputs: [{ type: 'address' }],
-  },
-] as const;
 
 // Compose images onto a canvas (supports PNG, JPEG, JPG, GIF)
 // Note: 3D models (GLB/GLTF) are preview-only and cannot be composed
@@ -223,7 +213,7 @@ export default function CreatePage() {
   const addDeployedCollection = useCollectionsStore((state) => state.addDeployedCollection);
   const aiDraft = useAIGenerationStore((state) => state.draft);
   const [currentStep, setCurrentStep] = useState(0);
-  const [layers, setLayers] = useState<Layer[]>([]);
+  const [layers, setLayers] = useState<Layer[]>(() => createStarterLayers());
   const [collectionDetails, setCollectionDetails] = useState({
     name: '',
     symbol: '',
@@ -238,6 +228,9 @@ export default function CreatePage() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [previewNFTs, setPreviewNFTs] = useState<string[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [generationPlan, setGenerationPlan] = useState<GenerationPlan | null>(null);
+  const [generationSimulation, setGenerationSimulation] = useState<GenerationSimulation | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [uploadingTraits, setUploadingTraits] = useState<{[key: string]: boolean}>({});
 
   // Deployment state
@@ -247,11 +240,14 @@ export default function CreatePage() {
   const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const hydratedAIDraftId = useRef<number | null>(null);
 
   const isCorrectNetwork = isBaseNetwork(chainId ?? null);
 
   useEffect(() => {
-    if (!aiDraft?.generatorLayers?.length || layers.length > 0) return;
+    if (!aiDraft?.generatorLayers?.length || hydratedAIDraftId.current === aiDraft.createdAt) return;
+
+    hydratedAIDraftId.current = aiDraft.createdAt;
 
     setCollectionDetails({
       name: aiDraft.collectionName,
@@ -282,7 +278,7 @@ export default function CreatePage() {
     );
 
     setCurrentStep(1);
-  }, [aiDraft, layers.length]);
+  }, [aiDraft]);
 
   const addLayer = () => {
     const newLayer: Layer = {
@@ -293,6 +289,10 @@ export default function CreatePage() {
       isRequired: true,
     };
     setLayers([...layers, newLayer]);
+  };
+
+  const addStarterLayers = () => {
+    setLayers(createStarterLayers());
   };
 
   const updateLayer = (id: string, updates: Partial<Layer>) => {
@@ -394,24 +394,53 @@ export default function CreatePage() {
   };
 
   const handleGenerate = async () => {
-    if (layers.length === 0 || layers.every(l => l.traits.length === 0)) {
-      alert('Please add at least one layer with traits to generate NFTs.');
+    if (!layers.length || layers.some((layer) => layer.traits.length === 0)) {
+      setGenerationError('Every layer needs at least one trait before generation.');
       return;
     }
 
     setGenerating(true);
+    setGenerationError(null);
     setGenerationProgress(0);
     setShowPreview(true);
     setPreviewNFTs([]);
 
-    const count = Math.min(9, collectionDetails.maxSupply);
+    let plan: GenerationPlan;
+    try {
+      plan = createGenerationPlan({
+        layers: layers.map((layer) => ({
+          id: layer.id,
+          name: layer.name,
+          traits: layer.traits.map((trait) => ({
+            id: trait.id,
+            name: trait.name,
+            weight: trait.rarity,
+          })),
+        })),
+        requestedSupply: collectionDetails.maxSupply,
+        seed: `${collectionDetails.name}:${collectionDetails.symbol}:${collectionDetails.maxSupply}`,
+      });
+      setGenerationPlan(plan);
+      setGenerationSimulation(simulateGeneration(plan));
+    } catch (error) {
+      setGenerating(false);
+      setGenerationError(error instanceof Error ? error.message : 'Generation failed.');
+      return;
+    }
+
+    const count = Math.min(9, plan.items.length);
     const generated: string[] = [];
     let successCount = 0;
     let errorCount = 0;
 
     for (let i = 0; i < count; i++) {
       try {
-        const traitUrls = generateRandomNFT(layers);
+        const item = plan.items[i];
+        const traitUrls = item.traits.map((selected) =>
+          layers
+            .find((layer) => layer.id === selected.layerId)
+            ?.traits.find((trait) => trait.id === selected.traitId)?.preview || '',
+        );
         if (traitUrls.length > 0) {
           const composed = await composeNFT(traitUrls, 512);
           if (composed) {
@@ -445,7 +474,7 @@ export default function CreatePage() {
 
   const handleRegenerateOne = async (index: number) => {
     try {
-      const traitUrls = generateRandomNFT(layers);
+      const { traitUrls } = generateRandomNFT(layers);
       if (traitUrls.length === 0) {
         console.warn('No trait URLs generated');
         return;
@@ -502,6 +531,12 @@ export default function CreatePage() {
       return;
     }
 
+    if (collectionDetails.royaltyPercentage < 0 || collectionDetails.royaltyPercentage > 10) {
+      setDeployError('Royalty must be between 0% and 10%.');
+      setDeployStatus('error');
+      return;
+    }
+
     setDeployStatus('deploying');
     setDeployError(null);
     setDeployTxHash(null);
@@ -531,6 +566,8 @@ export default function CreatePage() {
           banner_image: collectionDetails.bannerImage || '',
           external_link: 'https://thehouseofjoshi.com',
           seller_fee_basis_points: collectionDetails.royaltyPercentage * 100,
+          royal_dna: generationPlan?.manifestHash || null,
+          generator: 'House of Joshi NFT Generator',
         };
 
         const uploadedContractURI = await uploadJSONToIPFS(
@@ -571,14 +608,28 @@ export default function CreatePage() {
       console.log('Deploying collection...');
 
       // Dynamically import viem functions only when needed (client-side)
-      const { encodeFunctionData, parseEther } = await import('viem');
+      const { parseEther } = await import('viem');
 
       if (!walletClient) {
         throw new Error('Wallet client not available. Please connect your wallet.');
       }
 
-      // Set deployment fee to 0.0001 ETH
-      const deploymentFeeWei = parseEther('0.0001');
+      const activeChainId = chainId === 84532 ? 84532 : BASE_MAINNET.id;
+      const factoryAddress = getFactoryAddress(activeChainId);
+      if (!factoryAddress) {
+        throw new Error('HOJNFTGen is not configured for this network. Add its address to the environment settings.');
+      }
+
+      const { createPublicClient, http } = await import('viem');
+      const publicRpcUrl = activeChainId === 84532
+        ? 'https://sepolia.base.org'
+        : 'https://mainnet.base.org';
+      const client = createPublicClient({ transport: http(publicRpcUrl) });
+      const deploymentFeeWei = await client.readContract({
+        address: factoryAddress,
+        abi: FACTORY_ABI,
+        functionName: 'deploymentFee',
+      });
 
       // Prepare collection parameters with IPFS URIs
       const collectionParams = {
@@ -600,16 +651,9 @@ export default function CreatePage() {
 
       console.log('Collection parameters:', collectionParams);
 
-      // Encode the function call
-      const encodedData = encodeFunctionData({
-        abi: FACTORY_ABI,
-        functionName: 'createCollection',
-        args: [collectionParams],
-      });
-
       // Send transaction via Wagmi wallet client
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.FACTORY as `0x${string}`,
+        address: factoryAddress,
         abi: FACTORY_ABI,
         functionName: 'createCollection',
         args: [collectionParams],
@@ -619,21 +663,11 @@ export default function CreatePage() {
       setDeployTxHash(hash);
       
       // Wait for transaction confirmation using public client
-      const { createPublicClient, http } = await import('viem');
-      
       const maxWaitTime = 5 * 60 * 1000; // 5 minutes
       const pollInterval = 3 * 1000; // 3 seconds
       const startTime = Date.now();
       let receipt = null;
       let pollCount = 0;
-
-      const publicRpcUrl = chainId === 84532 
-        ? 'https://sepolia.base.org' 
-        : 'https://mainnet.base.org';
-      
-      const client = createPublicClient({
-        transport: http(publicRpcUrl)
-      });
 
       while (!receipt && Date.now() - startTime < maxWaitTime) {
         try {
@@ -680,7 +714,7 @@ export default function CreatePage() {
       if (receipt.logs && receipt.logs.length > 0) {
         for (const log of receipt.logs) {
           // Check if this is an event from the factory contract
-          if (log.address?.toLowerCase() === CONTRACTS.FACTORY.toLowerCase()) {
+          if (log.address?.toLowerCase() === factoryAddress.toLowerCase()) {
             console.log('Found factory event with topics:', log.topics?.length);
             if (log.topics && log.topics.length >= 3 && log.topics[2]) {
               const collectionAddr = '0x' + log.topics[2].slice(-40);
@@ -862,10 +896,34 @@ export default function CreatePage() {
   };
 
   const totalTraits = layers.reduce((sum, l) => sum + l.traits.length, 0);
-  const totalCombinations = layers.reduce(
-    (prod, l) => prod * Math.max(l.traits.length, 1),
-    1
+  const detailsComplete = Boolean(
+    collectionDetails.name.trim()
+    && collectionDetails.symbol.trim()
+    && collectionDetails.maxSupply > 0
+    && Number(collectionDetails.mintPrice) >= 0
+    && collectionDetails.royaltyPercentage >= 0
+    && collectionDetails.royaltyPercentage <= 10
   );
+  const layerSetupComplete = layers.length > 0 && layers.every((layer) => layer.traits.length > 0);
+  const hasGeneratedPreview = previewNFTs.some(Boolean);
+  const totalCombinations = layerSetupComplete
+    ? layers.reduce((prod, layer) => prod * layer.traits.length, 1)
+    : 0;
+
+  const canOpenStep = (stepIndex: number) => {
+    if (stepIndex === 0) return true;
+    if (stepIndex === 1) return detailsComplete;
+    if (stepIndex === 2) return detailsComplete && layerSetupComplete;
+    return detailsComplete && layerSetupComplete && hasGeneratedPreview;
+  };
+
+  const nextStepDisabled = currentStep === 0
+    ? !detailsComplete
+    : currentStep === 1
+      ? !layerSetupComplete
+      : currentStep === 2
+        ? !hasGeneratedPreview
+        : true;
 
   const canDeploy = isConnected && isCorrectNetwork && collectionDetails.name && collectionDetails.symbol;
 
@@ -875,15 +933,52 @@ export default function CreatePage() {
 
       <main className="flex-1 py-6 md:py-8">
         <div className="container px-4 max-w-6xl mx-auto">
+          <div className="mb-6 md:mb-8">
+            <Badge variant="outline" className="mb-3 border-crown/30 bg-crown/10 text-crown">
+              No-code collection builder · Base
+            </Badge>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h1 className="font-display text-3xl font-bold sm:text-4xl md:text-5xl">
+                  Layered NFT <span className="gold-text">Generator</span>
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                  Upload transparent traits, set their rarity, preview unique combinations,
+                  and deploy an ERC-721 collection without writing code.
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[330px]">
+                <div className="rounded-xl border border-royal-500/20 bg-card/60 px-3 py-2">
+                  <p className="font-display text-lg font-bold text-crown">{layers.length}</p>
+                  <p className="text-[11px] text-muted-foreground">Layers</p>
+                </div>
+                <div className="rounded-xl border border-royal-500/20 bg-card/60 px-3 py-2">
+                  <p className="font-display text-lg font-bold text-crown">{totalTraits}</p>
+                  <p className="text-[11px] text-muted-foreground">Traits</p>
+                </div>
+                <div className="rounded-xl border border-royal-500/20 bg-card/60 px-3 py-2">
+                  <p className="font-display text-lg font-bold text-crown">
+                    {totalCombinations > 999999
+                      ? `${(totalCombinations / 1000000).toFixed(1)}M`
+                      : totalCombinations.toLocaleString()}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">Combinations</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Step Navigation */}
           <div className="mb-6 md:mb-8">
             <div className="flex items-center justify-between gap-1 md:gap-2 bg-gradient-to-r from-royal-500/10 to-crown/10 p-2 sm:p-3 md:p-6 rounded-lg md:rounded-xl border border-royal-500/20 overflow-x-auto">
               {STEPS.map((step, i) => (
                 <React.Fragment key={step.id}>
                   <button
-                    onClick={() => setCurrentStep(i)}
+                    onClick={() => canOpenStep(i) && setCurrentStep(i)}
+                    disabled={!canOpenStep(i)}
+                    aria-current={currentStep === i ? 'step' : undefined}
                     className={cn(
-                      'flex flex-col items-center gap-1 md:gap-2 transition-all duration-300 flex-1 min-w-[60px] sm:min-w-[80px]',
+                      'flex flex-col items-center gap-1 md:gap-2 transition-all duration-300 flex-1 min-w-[60px] sm:min-w-[80px] disabled:cursor-not-allowed disabled:opacity-45',
                       currentStep === i
                         ? 'text-crown'
                         : i < currentStep
@@ -905,6 +1000,9 @@ export default function CreatePage() {
                     </div>
                     <span className="text-[10px] sm:text-xs font-medium hidden sm:block text-center leading-tight">
                       {step.label}
+                    </span>
+                    <span className="hidden text-[10px] leading-tight text-muted-foreground lg:block">
+                      {step.description}
                     </span>
                   </button>
                   {i < STEPS.length - 1 && (
@@ -1183,7 +1281,7 @@ export default function CreatePage() {
                       <div className="space-y-2">
                         <Label htmlFor="royalty">
                           Royalty %
-                          {collectionDetails.royaltyPercentage >= 0 && collectionDetails.royaltyPercentage <= 50 && (
+                          {collectionDetails.royaltyPercentage >= 0 && collectionDetails.royaltyPercentage <= 10 && (
                             <span className="ml-2 text-green-500">✓</span>
                           )}
                         </Label>
@@ -1191,7 +1289,7 @@ export default function CreatePage() {
                           id="royalty"
                           type="number"
                           min={0}
-                          max={50}
+                          max={10}
                           value={collectionDetails.royaltyPercentage}
                           onChange={(e) =>
                             setCollectionDetails({
@@ -1201,11 +1299,11 @@ export default function CreatePage() {
                           }
                           className={cn(
                             "royal-input",
-                            (collectionDetails.royaltyPercentage < 0 || collectionDetails.royaltyPercentage > 50) && "border-destructive"
+                            (collectionDetails.royaltyPercentage < 0 || collectionDetails.royaltyPercentage > 10) && "border-destructive"
                           )}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Creator royalty (0-50%)
+                          Creator royalty (0-10%)
                         </p>
                       </div>
                     </div>
@@ -1216,6 +1314,19 @@ export default function CreatePage() {
               {/* Step 2: Layer Setup */}
               {currentStep === 1 && (
                 <div className="space-y-4 md:space-y-6">
+                  <div className="rounded-xl border border-crown/25 bg-gradient-to-r from-royal-500/10 to-crown/10 p-4 sm:p-5">
+                    <div className="flex gap-3">
+                      <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-crown" />
+                      <div>
+                        <p className="font-medium">Build from back to front</p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          Upload same-size transparent PNG or WebP files. Background goes first;
+                          accessories and headwear go last. Every layer needs at least one trait.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 md:gap-4">
                     <Card className="royal-card text-center">
                       <CardContent className="pt-3 md:pt-4 pb-3 md:pb-4 px-2 md:px-6">
@@ -1241,13 +1352,12 @@ export default function CreatePage() {
                     </Card>
                   </div>
 
-                  <Button
-                    onClick={addLayer}
-                    className="w-full gold-button h-10 md:h-12 lg:h-14 text-sm md:text-base lg:text-lg"
-                  >
-                    <Plus className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-                    Add Layer
-                  </Button>
+                  <div className="flex justify-end">
+                    <Button onClick={addLayer} className="gold-button h-10 md:h-11">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add custom layer
+                    </Button>
+                  </div>
 
                   <AnimatePresence>
                     {layers.map((layer, index) => (
@@ -1308,12 +1418,15 @@ export default function CreatePage() {
                             <Label className="flex items-center justify-center w-full h-28 sm:h-24 border-2 border-dashed border-royal-500/30 rounded-lg cursor-pointer hover:border-gold-500/50 transition-colors">
                               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                                 <Upload className="h-8 w-8 sm:h-8 sm:w-8" />
-                                <span className="text-xs sm:text-sm text-center px-2">Drop trait images or click to browse</span>
+                                <span className="text-xs sm:text-sm text-center px-2">
+                                  Drop transparent trait images or click to browse
+                                </span>
+                                <span className="text-[10px] text-muted-foreground/80">PNG, WebP or JPG · multiple files</span>
                               </div>
                               <input
                                 type="file"
                                 multiple
-                                accept="image/*,.glb,.gltf"
+                                accept="image/png,image/webp,image/jpeg"
                                 className="hidden"
                                 onChange={(e) =>
                                   e.target.files && addTrait(layer.id, e.target.files)
@@ -1322,68 +1435,66 @@ export default function CreatePage() {
                             </Label>
 
                             {layer.traits.length > 0 && (
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3 mt-4">
+                              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                                 {layer.traits.map((trait) => (
-                            <div
-                              key={trait.id}
-                              className="relative group aspect-square rounded-lg overflow-hidden border border-royal-500/30 hover:border-gold-500/50 transition-colors bg-gradient-to-br from-royal-500/10 to-amber-500/10"
-                            >
-                              {uploadingTraits[trait.id] ? (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Loader2 className="h-8 w-8 animate-spin text-crown" />
-                                </div>
-                              ) : trait.preview ? (
-                                trait.fileType === 'glb' || trait.fileType === 'gltf' ? (
-                                  <ModelViewer url={trait.preview} className="w-full h-full" />
-                                ) : (
-                                  <NextImage
-                                    src={trait.preview}
-                                    alt={trait.name}
-                                    width={400}
-                                    height={400}
-                                    className="w-full h-full object-contain"
-                                  />
-                                )
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
-                                </div>
-                              )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="absolute bottom-0 left-0 right-0 p-2">
-                                  <input
-                                    value={trait.name}
-                                    onChange={(e) =>
-                                      updateTrait(layer.id, trait.id, {
-                                        name: e.target.value,
-                                      })
-                                    }
-                                    className="w-full bg-transparent text-white text-xs font-medium border-b border-white/20 focus:border-gold-500 outline-none"
-                                  />
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <span className="text-xs text-white/60">Rarity:</span>
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      max={100}
-                                      value={trait.rarity}
-                                      onChange={(e) =>
-                                        updateTrait(layer.id, trait.id, {
-                                          rarity: parseInt(e.target.value) || 1,
-                                        })
-                                      }
-                                      className="w-12 h-5 text-xs bg-white/10 border-0"
-                                    />
+                                  <div
+                                    key={trait.id}
+                                    className="overflow-hidden rounded-xl border border-royal-500/30 bg-card/70 transition-colors hover:border-gold-500/50"
+                                  >
+                                    <div className="relative aspect-square bg-gradient-to-br from-royal-500/10 to-amber-500/10">
+                                      {uploadingTraits[trait.id] ? (
+                                        <div className="flex h-full w-full items-center justify-center">
+                                          <Loader2 className="h-8 w-8 animate-spin text-crown" />
+                                        </div>
+                                      ) : trait.preview ? (
+                                        trait.fileType === 'glb' || trait.fileType === 'gltf' ? (
+                                          <ModelViewer url={trait.preview} className="h-full w-full" />
+                                        ) : (
+                                          <NextImage
+                                            src={trait.preview}
+                                            alt={trait.name}
+                                            width={400}
+                                            height={400}
+                                            className="h-full w-full object-contain"
+                                          />
+                                        )
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center">
+                                          <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      <button
+                                        type="button"
+                                        aria-label={`Remove ${trait.name}`}
+                                        onClick={() => removeTrait(layer.id, trait.id)}
+                                        className="absolute right-2 top-2 rounded-full bg-background/85 p-1.5 text-destructive shadow-sm backdrop-blur hover:bg-destructive hover:text-white"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                    <div className="space-y-2 border-t border-royal-500/20 p-2.5">
+                                      <Input
+                                        aria-label="Trait name"
+                                        value={trait.name}
+                                        onChange={(e) => updateTrait(layer.id, trait.id, { name: e.target.value })}
+                                        className="h-8 text-xs"
+                                      />
+                                      <div className="flex items-center gap-2">
+                                        <Label className="flex-1 text-[11px] text-muted-foreground">Rarity weight</Label>
+                                        <Input
+                                          aria-label="Rarity weight"
+                                          type="number"
+                                          min={1}
+                                          max={100}
+                                          value={trait.rarity}
+                                          onChange={(e) => updateTrait(layer.id, trait.id, {
+                                            rarity: parseInt(e.target.value) || 1,
+                                          })}
+                                          className="h-8 w-16 text-xs"
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                                <button
-                                  onClick={() => removeTrait(layer.id, trait.id)}
-                                  className="absolute top-1 right-1 p-1 rounded-full bg-destructive/80 text-white opacity-0 group-hover:bg-destructive transition-opacity"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </div>
-                            </div>
                                 ))}
                               </div>
                             )}
@@ -1394,9 +1505,12 @@ export default function CreatePage() {
                   </AnimatePresence>
 
                   {layers.length === 0 && (
-                    <div className="text-center py-12 text-muted-foreground">
+                    <div className="rounded-xl border border-dashed border-royal-500/30 py-12 text-center text-muted-foreground">
                       <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No layers added yet. Click &quot;Add Layer&quot; to begin.</p>
+                      <p className="mb-4">No layers added yet.</p>
+                      <Button type="button" variant="outline" onClick={addStarterLayers}>
+                        Add recommended layers
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1460,6 +1574,46 @@ export default function CreatePage() {
                       </div>
                     </div>
 
+                    {collectionDetails.maxSupply > totalCombinations && (
+                      <div className="flex gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-400" />
+                        <p className="text-muted-foreground">
+                          Your supply is larger than the {totalCombinations.toLocaleString()} unique combinations available.
+                          Add more traits or lower the maximum supply to avoid repeated artwork.
+                        </p>
+                      </div>
+                    )}
+
+                    {generationError && (
+                      <div className="flex gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
+                        <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" />
+                        <p className="text-muted-foreground">{generationError}</p>
+                      </div>
+                    )}
+
+                    {generationPlan && generationSimulation && (
+                      <div className="rounded-xl border border-gold-500/30 bg-royal-950/50 p-4">
+                        <div className="mb-3 flex items-center gap-2">
+                          <ShieldCheck className="h-5 w-5 text-crown" />
+                          <h3 className="font-semibold">Royal DNA &amp; Generation Audit</h3>
+                        </div>
+                        <div className="grid gap-3 text-xs sm:grid-cols-2 md:text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Unique output</p>
+                            <p className="font-medium">{generationPlan.generatedSupply.toLocaleString()} / {generationPlan.requestedSupply.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Combination usage</p>
+                            <p className="font-medium">{generationSimulation.utilizationPercentage.toFixed(2)}% · {generationSimulation.duplicateRisk} risk</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-muted-foreground">Manifest fingerprint</p>
+                            <p className="break-all font-mono text-crown">{generationPlan.manifestHash}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <Separator className="bg-royal-500/20" />
 
                     {generating ? (
@@ -1484,7 +1638,7 @@ export default function CreatePage() {
                       <div className="flex flex-col gap-4">
                         <Button
                           onClick={handleGenerate}
-                          disabled={layers.length === 0 || totalTraits === 0}
+                          disabled={!layerSetupComplete}
                           className="w-full gold-button h-10 md:h-12 lg:h-14 text-sm md:text-base lg:text-lg"
                         >
                           <Shuffle className="mr-2 h-4 w-4 md:h-5 md:w-5" />
@@ -1527,7 +1681,7 @@ export default function CreatePage() {
                                   </div>
                                 )}
                               </div>
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-2">
+                              <div className="absolute inset-0 flex items-center justify-center gap-2 rounded-xl bg-black/60 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                                 <Button
                                   size="icon"
                                   variant="ghost"
@@ -1870,7 +2024,23 @@ export default function CreatePage() {
           </AnimatePresence>
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between gap-3 mt-8">
+          <div className="mt-8 rounded-xl border border-royal-500/20 bg-card/60 p-3 sm:p-4">
+            {currentStep === 0 && !detailsComplete && (
+              <p className="mb-3 text-center text-xs text-muted-foreground sm:text-left">
+                Add a collection name, symbol, valid supply, mint price, and royalty to continue.
+              </p>
+            )}
+            {currentStep === 1 && !layerSetupComplete && (
+              <p className="mb-3 text-center text-xs text-muted-foreground sm:text-left">
+                Upload at least one trait to every layer, or remove layers you do not need.
+              </p>
+            )}
+            {currentStep === 2 && !hasGeneratedPreview && (
+              <p className="mb-3 text-center text-xs text-muted-foreground sm:text-left">
+                Generate at least one preview before continuing to deployment.
+              </p>
+            )}
+            <div className="flex justify-between gap-3">
             <Button
               variant="outline"
               onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
@@ -1881,11 +2051,16 @@ export default function CreatePage() {
             </Button>
             <Button
               onClick={() => setCurrentStep(Math.min(STEPS.length - 1, currentStep + 1))}
-              disabled={currentStep === STEPS.length - 1}
+              disabled={nextStepDisabled}
               className="royal-button flex-1 sm:flex-none h-10 sm:h-12"
             >
-              Next
+              {currentStep === 0 && 'Continue to Layers'}
+              {currentStep === 1 && 'Continue to Preview'}
+              {currentStep === 2 && 'Continue to Deploy'}
+              {currentStep === 3 && 'Ready to Deploy'}
+              {currentStep < 3 && <ArrowRight className="ml-2 h-4 w-4" />}
             </Button>
+            </div>
           </div>
         </div>
       </main>

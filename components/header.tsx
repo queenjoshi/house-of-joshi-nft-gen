@@ -187,12 +187,14 @@ export function Header() {
             </Button>
           )}
 
-          {/* RainbowKit Connect Button - Desktop */}
-          <div className="hidden md:block">
-            <ConnectButton />
+          {/* RainbowKit Connect Button - All screen sizes */}
+          <div className="flex max-w-[112px] items-center justify-end min-[360px]:max-w-[132px] sm:max-w-none [&_button]:!h-8 [&_button]:!min-h-0 [&_button]:!min-w-0 [&_button]:!border [&_button]:!border-[#d4af37]/40 [&_button]:!bg-[#241033] [&_button]:!px-2 [&_button]:!text-[10px] [&_button]:!text-[#e8c965] [&_button]:!shadow-[0_4px_14px_rgba(212,175,55,0.10)] [&_button:hover]:!border-[#d4af37]/70 [&_button:hover]:!bg-[#321648] min-[360px]:[&_button]:!h-9 min-[360px]:[&_button]:!px-3 min-[360px]:[&_button]:!text-xs sm:[&_button]:!h-10 sm:[&_button]:!px-4 sm:[&_button]:!text-sm lg:[&_button]:!h-11 lg:[&_button]:!px-5">
+            <ConnectButton
+              accountStatus={{ smallScreen: 'avatar', largeScreen: 'full' }}
+              chainStatus={{ smallScreen: 'icon', largeScreen: 'full' }}
+              showBalance={{ smallScreen: false, largeScreen: true }}
+            />
           </div>
-
-          <div className="w-9 md:hidden" aria-hidden="true" />
         </div>
       </div>
 
@@ -255,10 +257,6 @@ export function Header() {
                 </button>
               )}
 
-              {/* Connect Wallet - Mobile */}
-              <div className="px-4 py-3">
-                <ConnectButton />
-              </div>
             </nav>
           </motion.div>
         )}

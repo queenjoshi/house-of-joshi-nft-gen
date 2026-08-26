@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, use } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -25,7 +25,19 @@ import {
 } from '@/components/ui/dialog';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
-import { useWalletStore, isBaseNetwork } from '@/lib/store';
+import { isBaseNetwork } from '@/lib/store';
+import { useAccount, useWalletClient } from 'wagmi';
+import { formatEther, isAddress } from 'viem';
+import { ROYAL_NFT_ABI } from '@/lib/contracts/contract-source';
+
+type ContractData = {
+  name: string;
+  symbol: string;
+  mintPrice: bigint;
+  totalMinted: bigint;
+  maxSupply: bigint;
+  maxMintPerWallet: bigint;
+};
 
 interface MintPageProps {
   params: Promise<{ contractAddress: string }>;
@@ -33,81 +45,74 @@ interface MintPageProps {
 
 export default function MintPage({ params }: MintPageProps) {
   const { contractAddress } = use(params);
-  const { isConnected, chainId, address } = useWalletStore();
+  const { isConnected, chainId, address } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [mintQuantity, setMintQuantity] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
+  const [contractData, setContractData] = useState<ContractData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const isCorrectNetwork = isBaseNetwork(chainId);
+  const isCorrectNetwork = isBaseNetwork(chainId ?? null);
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+  useEffect(() => {
+    if (!isAddress(contractAddress)) {
+      setLoadError('This is not a valid EVM contract address.');
+      return;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { createPublicClient, http } = await import('viem');
+        const rpcUrl = chainId === 84532 ? 'https://sepolia.base.org' : 'https://mainnet.base.org';
+        const client = createPublicClient({ transport: http(rpcUrl) });
+        const names = ['name', 'symbol', 'mintPrice', 'totalMinted', 'maxSupply', 'maxMintPerWallet'] as const;
+        const results = await Promise.all(names.map((functionName) => client.readContract({
+          address: contractAddress,
+          abi: ROYAL_NFT_ABI,
+          functionName,
+        })));
+        if (!cancelled) {
+          setContractData({
+            name: results[0] as string,
+            symbol: results[1] as string,
+            mintPrice: results[2] as bigint,
+            totalMinted: results[3] as bigint,
+            maxSupply: results[4] as bigint,
+            maxMintPerWallet: results[5] as bigint,
+          });
+          setLoadError(null);
+        }
+      } catch {
+        if (!cancelled) setLoadError('Could not read this collection on the selected Base network.');
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [chainId, contractAddress]);
 
   const handleMint = async () => {
     if (!isConnected || !isCorrectNetwork) return;
     setIsMinting(true);
 
     try {
-      if (!window.ethereum) {
-        throw new Error('Web3 wallet not found');
-      }
-
-      // Import viem for encoding
-      const { encodeFunctionData, parseEther } = await import('viem');
-      const { ROYAL_NFT_ABI } = await import('@/lib/contracts/contract-source');
-
-      // Get mint price from contract (default to 0.05 ETH)
-      const mintPriceWei = parseEther('0.05');
-      const totalValue = mintPriceWei * BigInt(mintQuantity);
-
-      // Encode mint function call
-      const data = encodeFunctionData({
+      if (!walletClient || !contractData) throw new Error('Collection data or wallet is not ready.');
+      const txHash = await walletClient.writeContract({
+        address: contractAddress as `0x${string}`,
         abi: ROYAL_NFT_ABI,
         functionName: 'mint',
-        args: [BigInt(mintQuantity), '0x0000000000000000000000000000000000000000'], // No referral
+        args: [BigInt(mintQuantity), '0x0000000000000000000000000000000000000000'],
+        value: contractData.mintPrice * BigInt(mintQuantity),
       });
 
-      // Prepare mint transaction
-      const txParams = {
-        from: address,
-        to: contractAddress as `0x${string}`,
-        data: data,
-        value: '0x' + totalValue.toString(16),
-      };
-
-      // Send transaction
-      const txHash = await (window.ethereum as any).request({
-        method: 'eth_sendTransaction',
-        params: [txParams],
+      const { createPublicClient, http } = await import('viem');
+      const rpcUrl = chainId === 84532 ? 'https://sepolia.base.org' : 'https://mainnet.base.org';
+      const receipt = await createPublicClient({ transport: http(rpcUrl) }).waitForTransactionReceipt({
+        hash: txHash,
+        timeout: 5 * 60 * 1000,
       });
-
-      // Wait for confirmation
-      const maxWaitTime = 5 * 60 * 1000;
-      const pollInterval = 3 * 1000;
-      const startTime = Date.now();
-      let receipt = null;
-
-      while (!receipt && Date.now() - startTime < maxWaitTime) {
-        try {
-          const result = await (window.ethereum as any).request({
-            method: 'eth_getTransactionReceipt',
-            params: [txHash],
-          });
-
-          if (result) {
-            receipt = result;
-          }
-        } catch (e) {
-          // Ignore polling errors
-        }
-
-        if (!receipt) {
-          await new Promise(resolve => setTimeout(resolve, pollInterval));
-        }
-      }
-
-      if (!receipt) {
-        throw new Error('Transaction confirmation timeout');
-      }
-
-      if (receipt.status === '0x0') {
+      if (receipt.status === 'reverted') {
         throw new Error('Transaction failed');
       }
 
@@ -156,7 +161,7 @@ export default function MintPage({ params }: MintPageProps) {
             <div className="flex-1 pt-2 sm:pt-0">
               <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
                 <h1 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold">
-                  Collection
+                  {contractData?.name || 'Collection'}
                 </h1>
                 <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-gold-500 opacity-50" />
               </div>
@@ -206,15 +211,15 @@ export default function MintPage({ params }: MintPageProps) {
                   {/* Stats Row */}
                   <div className="grid grid-cols-3 gap-2 md:gap-4 text-center">
                     <div>
-                      <p className="text-xl sm:text-2xl font-bold gold-text">0</p>
+                      <p className="text-xl sm:text-2xl font-bold gold-text">{contractData?.totalMinted.toString() || '—'}</p>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">Minted</p>
                     </div>
                     <div>
-                      <p className="text-xl sm:text-2xl font-bold gold-text">0</p>
+                      <p className="text-xl sm:text-2xl font-bold gold-text">{contractData ? (contractData.maxSupply - contractData.totalMinted).toString() : '—'}</p>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">Remaining</p>
                     </div>
                     <div>
-                      <p className="text-xl sm:text-2xl font-bold gold-text">0</p>
+                      <p className="text-xl sm:text-2xl font-bold gold-text">{contractData ? formatEther(contractData.mintPrice) : '—'}</p>
                       <p className="text-[10px] sm:text-xs text-muted-foreground">ETH Each</p>
                     </div>
                   </div>
@@ -223,10 +228,10 @@ export default function MintPage({ params }: MintPageProps) {
                   <div>
                     <div className="flex justify-between text-xs sm:text-sm mb-2">
                       <span className="text-muted-foreground">Progress</span>
-                      <span className="font-medium">0%</span>
+                      <span className="font-medium">{contractData && contractData.maxSupply > BigInt(0) ? ((Number(contractData.totalMinted) / Number(contractData.maxSupply)) * 100).toFixed(1) : '0'}%</span>
                     </div>
                     <div className="royal-progress">
-                      <div className="royal-progress-bar" style={{ width: '0%' }} />
+                      <div className="royal-progress-bar" style={{ width: `${contractData && contractData.maxSupply > BigInt(0) ? Math.min(100, (Number(contractData.totalMinted) / Number(contractData.maxSupply)) * 100) : 0}%` }} />
                     </div>
                   </div>
 
@@ -237,6 +242,12 @@ export default function MintPage({ params }: MintPageProps) {
                       <p className="text-muted-foreground">
                         Please switch to Base to mint
                       </p>
+                    </div>
+                  )}
+
+                  {loadError && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive sm:text-sm">
+                      {loadError}
                     </div>
                   )}
 
@@ -259,8 +270,8 @@ export default function MintPage({ params }: MintPageProps) {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => setMintQuantity(Math.min(10, mintQuantity + 1))}
-                        disabled={mintQuantity >= 10}
+                        onClick={() => setMintQuantity(Math.min(Number(contractData?.maxMintPerWallet || BigInt(10)) || 10, mintQuantity + 1))}
+                        disabled={mintQuantity >= (Number(contractData?.maxMintPerWallet || BigInt(10)) || 10)}
                         className="royal-border"
                       >
                         +
@@ -273,7 +284,7 @@ export default function MintPage({ params }: MintPageProps) {
                   {/* Total */}
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Total</span>
-                    <span className="text-2xl font-bold gold-text">{mintQuantity * 0} ETH</span>
+                    <span className="text-2xl font-bold gold-text">{contractData ? formatEther(contractData.mintPrice * BigInt(mintQuantity)) : '—'} ETH</span>
                   </div>
 
                   {/* Mint Button */}
@@ -285,7 +296,7 @@ export default function MintPage({ params }: MintPageProps) {
                   ) : (
                     <Button
                       onClick={handleMint}
-                      disabled={isMinting || !isCorrectNetwork}
+                      disabled={isMinting || !isCorrectNetwork || !contractData || !!loadError}
                       className="w-full gold-button h-14"
                     >
                       {isMinting ? (
