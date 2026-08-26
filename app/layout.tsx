@@ -15,10 +15,10 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/og-image.png',
+        url: '/hoj-nft-generator-social.png',
         width: 1200,
         height: 630,
-        alt: 'House of Joshi - NFT Launchpad',
+        alt: 'House of Joshi layered NFT Generator',
       },
     ],
   },
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'House of Joshi Launchpad | NFT Launchpad on Base',
     description: 'Create, launch, and mint generative NFT collections on Base.',
-    images: ['/og-image.png'],
+    images: ['/hoj-nft-generator-social.png'],
     creator: '@thehouseofjoshi',
   },
   icons: {
