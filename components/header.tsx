@@ -35,7 +35,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Home', icon: Compass },
   { href: '/collections', label: 'Collections', icon: Compass },
   { href: '/launchpad', label: 'Launchpad', icon: Sparkles },
-  { href: '/ai-generator', label: 'AI Generator', icon: Wand2 },
+  { href: '/ai-generator', label: 'AI Generator · Soon', icon: Wand2 },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
 
