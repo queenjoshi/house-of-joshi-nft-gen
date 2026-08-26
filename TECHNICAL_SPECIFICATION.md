@@ -55,7 +55,7 @@ This document outlines the technical architecture and specifications of the Hous
 - **Base Sepolia Testnet**: Chain ID 84532, RPC: https://sepolia.base.org
 
 ### Deployed Contracts
-- **Factory Contract**: 0x81B85DbfF8962EBd4CF610EaDD5398913B0405c1 (on Base)
+- **Factory Contract**: 0x303c77cDAf1C6799533D9cD234C05633Ce476467 (on Base)
 
 ---
 

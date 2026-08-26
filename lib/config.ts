@@ -1,10 +1,10 @@
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
-// Contract addresses are network-specific. Base keeps the legacy deployment as
-// a fallback; Base Sepolia must be explicitly configured after deployment.
+// Contract addresses are network-specific. Base uses the verified HOJNFTGen
+// deployment as its fallback; Base Sepolia must be explicitly configured.
 export const FACTORY_ADDRESSES = {
   8453: (process.env.NEXT_PUBLIC_HOJ_FACTORY_BASE
-    || '0x81B85DbfF8962EBd4CF610EaDD5398913B0405c1') as `0x${string}`,
+    || '0x303c77cDAf1C6799533D9cD234C05633Ce476467') as `0x${string}`,
   84532: (process.env.NEXT_PUBLIC_HOJ_FACTORY_BASE_SEPOLIA
     || ZERO_ADDRESS) as `0x${string}`,
 } as const;
