@@ -18,6 +18,10 @@ export function getFactoryAddress(chainId?: number | null) {
 // Backwards-compatible mainnet contract reference.
 export const CONTRACTS = {
   FACTORY: FACTORY_ADDRESSES[8453],
+  DREAMWEAVER: (process.env.NEXT_PUBLIC_DREAMWEAVER_CONTRACT
+    || '0xd426105F39C8B0d192496e8aBfaD4a2D7686a8E6') as `0x${string}`,
+  DREAMWEAVER_SIGNER: (process.env.NEXT_PUBLIC_DREAMWEAVER_SIGNER_ADDRESS
+    || '0x769c118906c7E25d3cdfd943ce9a0B8Aab56eFeE') as `0x${string}`,
 };
 
 // Network Configuration

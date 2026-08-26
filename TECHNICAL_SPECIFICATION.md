@@ -56,6 +56,8 @@ This document outlines the technical architecture and specifications of the Hous
 
 ### Deployed Contracts
 - **Factory Contract**: 0x303c77cDAf1C6799533D9cD234C05633Ce476467 (on Base)
+- **Dreamweaver Contract**: 0xd426105F39C8B0d192496e8aBfaD4a2D7686a8E6 (on Base)
+- **Dreamweaver Voucher Signer**: 0x769c118906c7E25d3cdfd943ce9a0B8Aab56eFeE
 
 ---
 
