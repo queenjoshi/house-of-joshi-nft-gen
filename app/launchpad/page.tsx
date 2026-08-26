@@ -552,58 +552,63 @@ export default function CreatePage() {
       // Upload collection metadata to IPFS with real collection details
       console.log('Preparing IPFS metadata...');
       
-      let contractURI = 'ipfs://QmPlaceholder'; // Fallback
-      let baseURI = 'ipfs://QmPlaceholder/'; // Fallback
+      const { publishImageToIPFS, toIPFSUri, uploadJSONToIPFS, uploadMetadataDirectory } = await import('@/lib/ipfs');
+      const safeSymbol = collectionDetails.symbol.replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const [publishedCover, publishedBanner] = await Promise.all([
+        publishImageToIPFS(collectionDetails.coverImage, `${safeSymbol}-cover.png`),
+        publishImageToIPFS(collectionDetails.bannerImage, `${safeSymbol}-banner.png`),
+      ]);
 
-      // Try to upload contract metadata (collection info) to IPFS
-      try {
-        const { uploadJSONToIPFS } = await import('@/lib/ipfs');
-        
-        const contractMetadata = {
-          name: collectionDetails.name,
-          description: collectionDetails.description,
-          image: collectionDetails.coverImage || '',
-          banner_image: collectionDetails.bannerImage || '',
-          external_link: 'https://thehouseofjoshi.com',
-          seller_fee_basis_points: collectionDetails.royaltyPercentage * 100,
-          royal_dna: generationPlan?.manifestHash || null,
-          generator: 'House of Joshi NFT Generator',
-        };
+      // Contract-level metadata is used by Base marketplaces for collection branding.
+      // Include common aliases because marketplace indexers do not all consume the
+      // same banner/featured-image property.
+      const contractMetadata = {
+        name: collectionDetails.name,
+        symbol: collectionDetails.symbol,
+        description: collectionDetails.description,
+        image: publishedCover.ipfsUri,
+        image_url: publishedCover.ipfsUri,
+        logo_image: publishedCover.ipfsUri,
+        featured_image: publishedCover.ipfsUri,
+        featured_image_url: publishedCover.ipfsUri,
+        banner_image: publishedBanner.ipfsUri,
+        banner_image_url: publishedBanner.ipfsUri,
+        external_link: 'https://nftlaunchpad.thehouseofjoshi.com',
+        seller_fee_basis_points: collectionDetails.royaltyPercentage * 100,
+        fee_recipient: address,
+        royal_dna: generationPlan?.manifestHash || null,
+        generator: 'House of Joshi NFT Launchpad',
+      };
 
-        const uploadedContractURI = await uploadJSONToIPFS(
-          contractMetadata,
-          `${collectionDetails.symbol}_contract`
-        );
-        contractURI = uploadedContractURI.replace('https://gateway.pinata.cloud/ipfs/', 'ipfs://');
-        console.log('Contract metadata uploaded:', contractURI);
-      } catch (e) {
-        console.warn('Contract metadata upload failed, using placeholder:', e);
+      const contractURI = toIPFSUri(await uploadJSONToIPFS(
+        contractMetadata,
+        `${safeSymbol}-contract`,
+      ));
+
+      // Pin a real directory containing 0.json through maxSupply-1.json so the
+      // contract's tokenURI values resolve on every standards-compliant indexer.
+      const tokenMetadata = {
+        description: collectionDetails.description,
+        image: publishedCover.ipfsUri,
+        image_url: publishedCover.ipfsUri,
+        external_url: 'https://nftlaunchpad.thehouseofjoshi.com',
+        attributes: [{ trait_type: 'Collection', value: collectionDetails.name }],
+      };
+      const { baseURI } = await uploadMetadataDirectory({
+        name: collectionDetails.name,
+        count: collectionDetails.maxSupply,
+        metadata: tokenMetadata,
+      });
+
+      if (collectionDetails.coverImage && !publishedCover.ipfsUri.startsWith('ipfs://')) {
+        throw new Error('The collection cover could not be published to IPFS. Deployment was stopped.');
+      }
+      if (collectionDetails.bannerImage && !publishedBanner.ipfsUri.startsWith('ipfs://')) {
+        throw new Error('The collection banner could not be published to IPFS. Deployment was stopped.');
       }
 
-      // Create a base NFT metadata structure for the baseURI
-      try {
-        const { uploadJSONToIPFS } = await import('@/lib/ipfs');
-        
-        // Upload a sample NFT metadata that will be used as the base
-        const sampleNFTMetadata = {
-          name: `${collectionDetails.name} #1`,
-          description: collectionDetails.description,
-          image: collectionDetails.coverImage || 'ipfs://QmPlaceholder',
-          attributes: [
-            {
-              trait_type: 'Collection',
-              value: collectionDetails.name,
-            },
-          ],
-        };
-
-        const uploadedBaseURI = await uploadJSONToIPFS(sampleNFTMetadata, '1');
-        // Replace the filename with a generic pattern for baseURI
-        baseURI = uploadedBaseURI.replace(/\/1\.json$/, '/');
-        console.log('Base URI set up:', baseURI);
-      } catch (e) {
-        console.warn('Base metadata upload failed, using placeholder:', e);
-      }
+      const persistedCoverImage = publishedCover.gatewayUrl || collectionDetails.coverImage;
+      const persistedBannerImage = publishedBanner.gatewayUrl || collectionDetails.bannerImage;
 
       console.log('Deploying collection...');
 
@@ -752,8 +757,8 @@ export default function CreatePage() {
           contractAddress: deployedCollectionAddress,
           name: collectionDetails.name,
           symbol: collectionDetails.symbol,
-          coverImage: collectionDetails.coverImage,
-          bannerImage: collectionDetails.bannerImage,
+          coverImage: persistedCoverImage,
+          bannerImage: persistedBannerImage,
           maxSupply: collectionDetails.maxSupply,
           mintPrice: collectionDetails.mintPrice,
           creatorAddress: address,
@@ -786,8 +791,8 @@ export default function CreatePage() {
             mint_price_wei_wei: '0', // Will be updated from contract
             royalty_percentage: collectionDetails.royaltyPercentage,
             royalty_recipient: address,
-            banner_url: collectionDetails.bannerImage || undefined,
-            cover_image_url: collectionDetails.coverImage || undefined,
+            banner_url: persistedBannerImage || undefined,
+            cover_image_url: persistedCoverImage || undefined,
             deployment_tx_hash: hash,
             is_public: true,
             is_verified: false,

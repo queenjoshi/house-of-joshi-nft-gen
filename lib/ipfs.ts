@@ -47,6 +47,33 @@ export async function uploadFileToIPFS(file: File): Promise<string> {
   }
 }
 
+/** Convert a Pinata or public IPFS gateway URL into the canonical onchain URI. */
+export function toIPFSUri(value: string): string {
+  if (!value || value.startsWith('ipfs://')) return value;
+  const match = value.match(/\/ipfs\/([^/?#]+)([^?#]*)/i);
+  return match ? `ipfs://${match[1]}${match[2] || ''}` : value;
+}
+
+/** Convert an uploaded browser image into a permanent IPFS URL when needed. */
+export async function publishImageToIPFS(value: string | null, filename: string) {
+  if (!value) return { ipfsUri: '', gatewayUrl: '' };
+
+  if (value.startsWith('data:')) {
+    const gatewayUrl = await uploadFileToIPFS(dataURLtoFile(value, filename));
+    return { ipfsUri: toIPFSUri(gatewayUrl), gatewayUrl };
+  }
+
+  if (value.startsWith('ipfs://')) {
+    const cidPath = value.slice('ipfs://'.length);
+    return {
+      ipfsUri: value,
+      gatewayUrl: `https://gateway.pinata.cloud/ipfs/${cidPath}`,
+    };
+  }
+
+  return { ipfsUri: toIPFSUri(value), gatewayUrl: value };
+}
+
 /**
  * Upload JSON to IPFS via Pinata REST API
  */
@@ -73,6 +100,30 @@ export async function uploadJSONToIPFS(
     console.error('JSON upload error:', error);
     throw error;
   }
+}
+
+export async function uploadMetadataDirectory({
+  name,
+  count,
+  metadata,
+}: {
+  name: string;
+  count: number;
+  metadata: Record<string, unknown>;
+}): Promise<{ baseURI: string; gatewayUrl: string }> {
+  const response = await fetch('/api/ipfs/metadata-directory', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, count, metadata }),
+  });
+  const data = await response.json() as { ipfsUri?: string; gatewayUrl?: string; error?: string };
+  if (!response.ok || !data.ipfsUri || !data.gatewayUrl) {
+    throw new Error(data.error || 'Metadata directory upload failed.');
+  }
+  return {
+    baseURI: `${data.ipfsUri.replace(/\/$/, '')}/`,
+    gatewayUrl: `${data.gatewayUrl.replace(/\/$/, '')}/`,
+  };
 }
 
 /**
@@ -164,7 +215,7 @@ export async function generateAndUploadCollectionMetadata(
 /**
  * Convert data URL to File
  */
-function dataURLtoFile(dataurl: string, filename: string): File {
+export function dataURLtoFile(dataurl: string, filename: string): File {
   try {
     const arr = dataurl.split(',');
     const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
