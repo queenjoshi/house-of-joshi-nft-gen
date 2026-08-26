@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element -- Collection previews can reference arbitrary remote and decentralized image URLs. */
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {

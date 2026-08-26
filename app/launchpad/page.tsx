@@ -40,10 +40,11 @@ import { Footer } from '@/components/footer';
 import { isBaseNetwork, BASE_MAINNET, useAIGenerationStore, useCollectionsStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi';
-import { ROYAL_NFT_SOURCE_CODE, COMPILER_VERSION, CONTRACT_NAME, ROYAL_NFT_CONTRACT_NAME, getRoyalNFTSourceCode } from '@/lib/contracts/contract-source';
+import { COMPILER_VERSION, CONTRACT_NAME } from '@/lib/contracts/contract-source';
+import { serializeVerificationParams, verifyDeployedContract } from '@/lib/contract-verification';
 import { CONTRACTS } from '@/lib/config';
 import { ModelViewer } from '@/components/model-viewer';
-import { upsertUser, createCollection as createSupabaseCollection } from '@/lib/supabase';
+import { upsertUser, createCollection as createSupabaseCollection, updateCollectionByAddress } from '@/lib/supabase';
 
 interface Layer {
   id: string;
@@ -776,9 +777,6 @@ export default function CreatePage() {
         await verifyContract(
           deployedCollectionAddress, 
           (chainId || BASE_MAINNET.id) as number, 
-          hash,
-          collectionDetails.name,
-          collectionDetails.symbol,
           collectionParams
         );
       }
@@ -805,136 +803,45 @@ export default function CreatePage() {
   const verifyContract = async (
     contractAddr: string, 
     networkChainId: number, 
-    txHash?: string,
-    collectionName?: string,
-    collectionSymbol?: string,
-    collectionParams?: any
+    collectionParams: {
+      name: string;
+      symbol: string;
+      contractURI: string;
+      baseURI: string;
+      unrevealedURI: string;
+      maxSupply: bigint;
+      mintPrice: bigint;
+      maxMintPerWallet: bigint;
+      mintStart: bigint;
+      mintEnd: bigint;
+      revealTime: bigint;
+      royaltyReceiver: `0x${string}`;
+      royaltyBps: bigint;
+      allowlistRoot: `0x${string}`;
+    }
   ) => {
     setDeployStatus('verifying');
     const explorerBase = networkChainId === 84532
       ? 'https://sepolia.basescan.org'
       : 'https://basescan.org';
-    const apiKey = process.env.NEXT_PUBLIC_BASESCAN_API_KEY || '';
 
     try {
-      // Get RoyalNFT source code with dependencies (without factory)
-      const sourceCode = getRoyalNFTSourceCode();
+      const result = await verifyDeployedContract(
+        contractAddr,
+        networkChainId,
+        serializeVerificationParams(collectionParams),
+      );
+      setVerificationUrl(result.explorerUrl);
 
-      // Encode constructor arguments for BaseScan verification
-      // The RoyalNFT constructor takes CollectionParams struct
-      let constructorArguments = '';
-      if (collectionParams) {
-        const { encodeFunctionData } = await import('viem');
-        
-        // Define the RoyalNFT constructor ABI
-        const constructorAbi = {
-          type: 'constructor',
-          inputs: [
-            {
-              type: 'tuple',
-              name: 'p',
-              components: [
-                { name: 'name', type: 'string' },
-                { name: 'symbol', type: 'string' },
-                { name: 'contractURI', type: 'string' },
-                { name: 'baseURI', type: 'string' },
-                { name: 'unrevealedURI', type: 'string' },
-                { name: 'maxSupply', type: 'uint256' },
-                { name: 'mintPrice', type: 'uint256' },
-                { name: 'maxMintPerWallet', type: 'uint256' },
-                { name: 'mintStart', type: 'uint64' },
-                { name: 'mintEnd', type: 'uint64' },
-                { name: 'revealTime', type: 'uint64' },
-                { name: 'royaltyReceiver', type: 'address' },
-                { name: 'royaltyBps', type: 'uint96' },
-                { name: 'allowlistRoot', type: 'bytes32' },
-              ],
-            },
-          ],
-        } as const;
-
-        const encoded = encodeFunctionData({
-          abi: [constructorAbi],
-          functionName: 'constructor',
-          args: [
-            {
-              name: collectionParams.name,
-              symbol: collectionParams.symbol,
-              contractURI: collectionParams.contractURI,
-              baseURI: collectionParams.baseURI,
-              unrevealedURI: collectionParams.unrevealedURI,
-              maxSupply: collectionParams.maxSupply,
-              mintPrice: collectionParams.mintPrice,
-              maxMintPerWallet: collectionParams.maxMintPerWallet,
-              mintStart: collectionParams.mintStart,
-              mintEnd: collectionParams.mintEnd,
-              revealTime: collectionParams.revealTime,
-              royaltyReceiver: collectionParams.royaltyReceiver,
-              royaltyBps: collectionParams.royaltyBps,
-              allowlistRoot: collectionParams.allowlistRoot,
-            },
-          ],
-        });
-
-        constructorArguments = encoded.slice(2); // Remove 0x prefix for BaseScan
-      }
-
-      // Submit verification request to BaseScan
-      const verifyResponse = await fetch(`${explorerBase}/api`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          module: 'contract',
-          action: 'verifysourcecode',
-          apikey: apiKey,
-          contractaddress: contractAddr,
-          sourceCode: sourceCode,
-          codeformat: 'solidity-single-file',
-          contractname: ROYAL_NFT_CONTRACT_NAME,
-          compilerversion: COMPILER_VERSION,
-          optimizationUsed: '0',
-          runs: '200',
-          constructorArguements: constructorArguments,
-          licenseType: '3',
-        }),
-      });
-
-      const verifyData = await verifyResponse.json();
-
-      if (verifyData.status === '1') {
-        // Verification submitted successfully, now check status
-        const maxPolls = 20;
-        let pollCount = 0;
-        let verified = false;
-
-        while (pollCount < maxPolls && !verified) {
-          await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-
-          const statusResponse = await fetch(
-            `${explorerBase}/api?module=contract&action=getsourcecode&address=${contractAddr}&apikey=${apiKey}`
-          );
-          const statusData = await statusResponse.json();
-
-          if (statusData.status === '1' && statusData.result[0]?.SourceCode) {
-            verified = true;
-            setDeployStatus('verified');
-            setVerificationUrl(`${explorerBase}/address/${contractAddr}#code`);
-          }
-
-          pollCount++;
-        }
-
-        if (!verified) {
-          console.warn('Verification pending, user can check manually');
-          setDeployStatus('deployed');
-          setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
+      if (result.verified) {
+        setDeployStatus('verified');
+        try {
+          await updateCollectionByAddress(contractAddr, { is_verified: true, status: 'live' });
+        } catch (error) {
+          console.warn('Contract verified, but the collection status could not be updated:', error);
         }
       } else {
-        console.warn('Verification submission failed:', verifyData.message);
         setDeployStatus('deployed');
-        setVerificationUrl(`${explorerBase}/address/${contractAddr}`);
       }
     } catch (error) {
       console.error('Verification error:', error);

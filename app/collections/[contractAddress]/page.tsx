@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element -- Collection metadata can reference arbitrary remote and decentralized image URLs. */
+
 import React, { useState, use } from 'react';
 import { motion } from 'framer-motion';
 import {

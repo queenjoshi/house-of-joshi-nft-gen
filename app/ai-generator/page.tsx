@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element -- Generated previews use blob and data URLs that Next Image cannot optimize. */
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Download, Loader2, Package, Plus, RefreshCw, Save, Shuffle, Sparkles, Trash2, Wand2, Crown } from 'lucide-react';
@@ -260,13 +262,15 @@ export default function AIGeneratorPage() {
   }, [prompt, hasEditedSuggestions]);
 
   useEffect(() => {
-    const nextSelected = { ...selectedTraits };
-    Object.values(generatedLayerAssets).forEach((layer) => {
-      if (!nextSelected[layer.id] && layer.traits[0]) {
-        nextSelected[layer.id] = layer.traits[0].id;
-      }
+    setSelectedTraits((currentSelected) => {
+      const nextSelected = { ...currentSelected };
+      Object.values(generatedLayerAssets).forEach((layer) => {
+        if (!nextSelected[layer.id] && layer.traits[0]) {
+          nextSelected[layer.id] = layer.traits[0].id;
+        }
+      });
+      return nextSelected;
     });
-    setSelectedTraits(nextSelected);
   }, [generatedLayerAssets]);
 
   const orderedGeneratedLayers = layerPrompts

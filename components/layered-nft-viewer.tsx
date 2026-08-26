@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable jsx-a11y/alt-text -- Image below is a react-three/drei scene primitive, not an HTML image. */
+
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Image } from '@react-three/drei';

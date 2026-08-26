@@ -23,5 +23,13 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "supabase/functions/**/*"]
+  "exclude": [
+    "node_modules",
+    "node_modules.pre-fix",
+    ".next.pre-fix",
+    "artifacts",
+    "cache",
+    "typechain-types",
+    "supabase/functions/**/*"
+  ]
 }

@@ -12,6 +12,7 @@ import { Footer } from '@/components/footer';
 import LayeredNFTViewer from '@/components/layered-nft-viewer';
 import { useAIGenerationStore, useCollectionsStore, useWalletStore } from '@/lib/store';
 import { deployCollection } from '@/lib/contracts/contract-source';
+import { serializeVerificationParams, verifyDeployedContract } from '@/lib/contract-verification';
 import { useWalletClient } from 'wagmi';
 import Link from 'next/link';
 
@@ -23,6 +24,9 @@ export default function AIMintPage() {
   
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployedAddress, setDeployedAddress] = useState('');
+  const [deployedChainId, setDeployedChainId] = useState<8453 | 84532>(8453);
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'verifying' | 'verified' | 'pending'>('idle');
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [error, setError] = useState('');
 
   const collectionDetails = generatedDraft
@@ -61,14 +65,16 @@ export default function AIMintPage() {
       // The generator already pinned image and metadata through the Edge Function.
       const metadataURI = generatedDraft.metadataUrl;
 
-      const contractAddress = await deployCollection(
+      const deployment = await deployCollection(
         address as string,
         collectionDetails,
         metadataURI,
         walletClient
       );
+      const { contractAddress, transactionHash, chainId, collectionParams } = deployment;
 
       setDeployedAddress(contractAddress);
+      setDeployedChainId(chainId);
       
       // Step 3: Save to store
       addDeployedCollection({
@@ -82,8 +88,28 @@ export default function AIMintPage() {
         mintPrice: collectionDetails.mintPrice,
         creatorAddress: address as string,
         deployedAt: Date.now(),
-        txHash: 'pending',
+        txHash: transactionHash,
       });
+
+      setVerificationStatus('verifying');
+      setVerificationMessage('Submitting source code and constructor arguments to BaseScan...');
+      try {
+        const verification = await verifyDeployedContract(
+          contractAddress,
+          chainId,
+          serializeVerificationParams(collectionParams),
+        );
+        setVerificationStatus(verification.verified ? 'verified' : 'pending');
+        setVerificationMessage(verification.message);
+      } catch (verificationError) {
+        console.error('Automatic verification failed:', verificationError);
+        setVerificationStatus('pending');
+        setVerificationMessage(
+          verificationError instanceof Error
+            ? verificationError.message
+            : 'Deployment succeeded, but verification needs to be retried.',
+        );
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Deployment failed');
@@ -222,15 +248,25 @@ export default function AIMintPage() {
                           <span className="font-mono">{deployedAddress}</span>
                         </p>
                         <p>
-                          <span className="text-muted-foreground">Network:</span> Base
+                          <span className="text-muted-foreground">Network:</span>{' '}
+                          {deployedChainId === 84532 ? 'Base Sepolia' : 'Base'}
                         </p>
+                        {verificationStatus !== 'idle' && (
+                          <p>
+                            <span className="text-muted-foreground">Verification:</span>{' '}
+                            {verificationStatus === 'verifying' && 'Verifying...'}
+                            {verificationStatus === 'verified' && 'Verified ✓'}
+                            {verificationStatus === 'pending' && 'Pending'}
+                          </p>
+                        )}
+                        {verificationMessage && <p className="text-xs">{verificationMessage}</p>}
                       </div>
                       <Button
                         asChild
                         className="w-full mt-4 bg-amber-500 hover:bg-amber-600 text-white"
                       >
                         <a
-                          href={`https://basescan.org/address/${deployedAddress}`}
+                          href={`${deployedChainId === 84532 ? 'https://sepolia.basescan.org' : 'https://basescan.org'}/address/${deployedAddress}${verificationStatus === 'verified' ? '#code' : ''}`}
                           target="_blank"
                           rel="noopener noreferrer"
                         >

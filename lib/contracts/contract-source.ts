@@ -79,6 +79,7 @@ interface IERC721 {
     function approve(address to, uint256 tokenId) external;
     function getApproved(uint256 tokenId) external view returns (address operator);
     function setApprovalForAll(address operator, bool _approved) external;
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
 }
 
@@ -97,6 +98,10 @@ interface IERC721Metadata is IERC721 {
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+interface IERC2981 is IERC165 {
+    function royaltyInfo(uint256 tokenId, uint256 salePrice) external view returns (address receiver, uint256 royaltyAmount);
 }
 
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
@@ -141,6 +146,19 @@ library Strings {
     }
 }
 
+library MerkleProof {
+    function verify(bytes32[] memory proof, bytes32 root, bytes32 leaf) internal pure returns (bool) {
+        bytes32 computedHash = leaf;
+        for (uint256 i = 0; i < proof.length; i++) {
+            bytes32 proofElement = proof[i];
+            computedHash = computedHash <= proofElement
+                ? keccak256(abi.encodePacked(computedHash, proofElement))
+                : keccak256(abi.encodePacked(proofElement, computedHash));
+        }
+        return computedHash == root;
+    }
+}
+
 // OpenZeppelin Contracts v4.4.1 (token/ERC721/ERC721.sol)
 abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     using Address for address;
@@ -173,7 +191,7 @@ abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireMinted(tokenId);
         string memory baseURI = _baseURI();
-        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, _toString(tokenId))) : "";
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
     }
     function approve(address to, uint256 tokenId) public virtual override {
         address owner = ERC721.ownerOf(tokenId);
@@ -260,8 +278,11 @@ abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     }
     function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory data) private returns (bool) {
         if (to.isContract()) {
-            try return IERC721Receiver(to).onERC721Received(_msgSender(), from, tokenId, data) == IERC721Receiver.onERC721Received.selector;
-            catch {}
+            try IERC721Receiver(to).onERC721Received(_msgSender(), from, tokenId, data) returns (bytes4 retval) {
+                return retval == IERC721Receiver.onERC721Received.selector;
+            } catch {
+                return false;
+            }
         }
         return true;
     }
@@ -273,7 +294,7 @@ abstract contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     function _baseURI() internal view virtual returns (string memory) {
         return "";
     }
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165) returns (bool) {
         return interfaceId == type(IERC721).interfaceId || interfaceId == type(IERC721Metadata).interfaceId || super.supportsInterface(interfaceId);
     }
 }
@@ -287,7 +308,7 @@ interface IERC721Enumerable is IERC721 {
 
 // OpenZeppelin Contracts v4.4.1 (token/ERC721/extensions/ERC721Enumerable.sol)
 abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
-    mapping(address => mapping(uint256 => uint256)) private _ownedTokens;
+    mapping(address => uint256[]) private _ownedTokens;
     mapping(uint256 => uint256) private _ownedTokensIndex;
     uint256[] private _allTokens;
     mapping(uint256 => uint256) private _allTokensIndex;
@@ -343,7 +364,7 @@ abstract contract ERC721Enumerable is ERC721, IERC721Enumerable {
         delete _allTokensIndex[tokenId];
         _allTokens.pop();
     }
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
         return interfaceId == type(IERC721Enumerable).interfaceId || super.supportsInterface(interfaceId);
     }
 }
@@ -378,15 +399,22 @@ abstract contract ERC721URIStorage is ERC721, IERC721URIStorage {
 }
 
 contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, ReentrancyGuard {
-    uint256 public constant MAX_SUPPLY = 10000;
+    uint256 public immutable maxSupply;
+    uint256 public immutable maxMintPerWallet;
     uint256 public mintPrice;
     uint256 public mintStartTime;
     uint256 public mintEndTime;
     string public baseTokenURI;
+    string public contractURI;
+    string public unrevealedURI;
+    uint256 public revealTime;
     uint96 public royaltyPercentage;
     address public royaltyRecipient;
+    bytes32 public allowlistRoot;
+    uint256 public totalReferralLiabilities;
 
     uint256 private _tokenIdCounter;
+    mapping(address => uint256) public mintedByWallet;
     mapping(address => uint256) public referralMints;
     mapping(address => uint256) public referralRewards;
 
@@ -395,6 +423,8 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
     event BaseURIUpdated(string newBaseURI);
     event MintPriceUpdated(uint256 newPrice);
     event MintWindowUpdated(uint256 startTime, uint256 endTime);
+    event ContractURIUpdated(string newContractURI);
+    event AllowlistRootUpdated(bytes32 newRoot);
 
     struct CollectionParams {
         string name;
@@ -414,21 +444,46 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
     }
 
     constructor(CollectionParams memory p) ERC721(p.name, p.symbol) Ownable(msg.sender) {
+        require(bytes(p.name).length > 0, "Name required");
+        require(bytes(p.symbol).length > 0, "Symbol required");
+        require(p.maxSupply > 0, "Invalid supply");
         require(p.royaltyBps <= 1000, "Invalid royalty");
         require(p.royaltyReceiver != address(0), "Invalid address");
+        maxSupply = p.maxSupply;
+        maxMintPerWallet = p.maxMintPerWallet;
         mintPrice = p.mintPrice;
         mintStartTime = p.mintStart;
         mintEndTime = p.mintEnd;
         baseTokenURI = p.baseURI;
+        contractURI = p.contractURI;
+        unrevealedURI = p.unrevealedURI;
+        revealTime = p.revealTime;
         royaltyPercentage = p.royaltyBps;
         royaltyRecipient = p.royaltyReceiver;
+        allowlistRoot = p.allowlistRoot;
     }
 
     function mint(uint256 quantity, address referral) external payable nonReentrant {
+        require(allowlistRoot == bytes32(0), "Allowlist mint required");
+        _mintCollection(quantity, referral);
+    }
+
+    function mintAllowlist(uint256 quantity, address referral, bytes32[] calldata proof) external payable nonReentrant {
+        require(allowlistRoot != bytes32(0), "Allowlist disabled");
+        bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+        require(MerkleProof.verify(proof, allowlistRoot, leaf), "Not allowlisted");
+        _mintCollection(quantity, referral);
+    }
+
+    function _mintCollection(uint256 quantity, address referral) internal {
+        require(quantity > 0, "Invalid quantity");
         require(block.timestamp >= mintStartTime, "Mint not started");
-        require(block.timestamp <= mintEndTime, "Mint ended");
-        require(_tokenIdCounter + quantity <= MAX_SUPPLY, "Max supply reached");
+        require(mintEndTime == 0 || block.timestamp <= mintEndTime, "Mint ended");
+        require(_tokenIdCounter + quantity <= maxSupply, "Max supply reached");
+        require(maxMintPerWallet == 0 || mintedByWallet[msg.sender] + quantity <= maxMintPerWallet, "Wallet limit reached");
         require(msg.value >= mintPrice * quantity, "Insufficient payment");
+
+        mintedByWallet[msg.sender] += quantity;
 
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = _tokenIdCounter;
@@ -440,6 +495,7 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
             referralMints[referral] += quantity;
             uint256 reward = (msg.value * 50) / 1000;
             referralRewards[referral] += reward;
+            totalReferralLiabilities += reward;
         }
 
         emit Minted(msg.sender, _tokenIdCounter - 1, msg.value, referral);
@@ -448,6 +504,16 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
     function setBaseURI(string memory _baseTokenURI) external onlyOwner {
         baseTokenURI = _baseTokenURI;
         emit BaseURIUpdated(_baseTokenURI);
+    }
+
+    function setContractURI(string memory _contractURI) external onlyOwner {
+        contractURI = _contractURI;
+        emit ContractURIUpdated(_contractURI);
+    }
+
+    function setAllowlistRoot(bytes32 _allowlistRoot) external onlyOwner {
+        allowlistRoot = _allowlistRoot;
+        emit AllowlistRootUpdated(_allowlistRoot);
     }
 
     function setMintPrice(uint256 _mintPrice) external onlyOwner {
@@ -462,9 +528,9 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
     }
 
     function withdraw() external onlyOwner {
-        uint256 balance = address(this).balance;
-        require(balance > 0, "No balance");
-        (bool success, ) = payable(owner()).call{value: balance}("");
+        uint256 available = address(this).balance - totalReferralLiabilities;
+        require(available > 0, "No balance");
+        (bool success, ) = payable(owner()).call{value: available}("");
         require(success, "Withdraw failed");
     }
 
@@ -472,21 +538,25 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
         uint256 reward = referralRewards[referrer];
         require(reward > 0, "No rewards");
         referralRewards[referrer] = 0;
+        totalReferralLiabilities -= reward;
         (bool success, ) = payable(referrer).call{value: reward}("");
         require(success, "Withdraw failed");
         emit ReferralRewardPaid(referrer, reward);
     }
 
     function totalMinted() external view returns (uint256) { return _tokenIdCounter; }
-    function remainingSupply() external view returns (uint256) { return MAX_SUPPLY - _tokenIdCounter; }
+    function remainingSupply() external view returns (uint256) { return maxSupply - _tokenIdCounter; }
 
     function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory) {
         require(_exists(tokenId), "Token does not exist");
+        if (revealTime != 0 && block.timestamp < revealTime && bytes(unrevealedURI).length > 0) {
+            return unrevealedURI;
+        }
         return string(abi.encodePacked(baseTokenURI, _toString(tokenId), ".json"));
     }
 
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable, ERC721URIStorage) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return interfaceId == type(IERC2981).interfaceId || super.supportsInterface(interfaceId);
     }
 
     function royaltyInfo(uint256, uint256 salePrice) external view returns (address receiver, uint256 royaltyAmount) {
@@ -494,16 +564,8 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
         return (royaltyRecipient, royaltyAmount);
     }
 
-    function _exists(uint256 tokenId) internal view returns (bool) {
-        return _ownerOf(tokenId) != address(0);
-    }
-
-    function _update(address to, uint256 tokenId, address auth) internal override(ERC721, ERC721Enumerable) returns (address) {
-        return super._update(to, tokenId, auth);
-    }
-
-    function _increaseBalance(address account, uint128 value) internal override(ERC721, ERC721Enumerable) {
-        super._increaseBalance(account, value);
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override(ERC721, ERC721Enumerable) {
+        super._beforeTokenTransfer(from, to, tokenId);
     }
 
     function _toString(uint256 value) internal pure returns (string memory) {
@@ -523,7 +585,7 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
     receive() external payable {}
 }
 
-contract NFTFactory is Ownable, ReentrancyGuard {
+contract HOJNFTGen is Ownable, ReentrancyGuard {
     uint256 public deploymentFee = 0.0001 ether;
     address public feeRecipient;
     
@@ -592,14 +654,16 @@ contract NFTFactory is Ownable, ReentrancyGuard {
 `;
 
 export const COMPILER_VERSION = "v0.8.20+commit.a1b79de6";
-export const CONTRACT_NAME = "NFTFactory";
+export const COMPILER_OPTIMIZATION_USED = true;
+export const COMPILER_OPTIMIZATION_RUNS = 200;
+export const CONTRACT_NAME = "HOJNFTGen";
 export const ROYAL_NFT_CONTRACT_NAME = "RoyalNFT";
 
 // Extract just the RoyalNFT contract from the full source code for verification
 export function getRoyalNFTSourceCode(): string {
-  // The ROYAL_NFT_SOURCE_CODE contains both NFTFactory and RoyalNFT
+  // The ROYAL_NFT_SOURCE_CODE contains both HOJNFTGen and RoyalNFT
   // We need to extract just the RoyalNFT contract for verification
-  const factoryStart = ROYAL_NFT_SOURCE_CODE.indexOf('contract NFTFactory');
+  const factoryStart = ROYAL_NFT_SOURCE_CODE.indexOf('contract HOJNFTGen');
   const royalNFTStart = ROYAL_NFT_SOURCE_CODE.indexOf('contract RoyalNFT');
   
   if (royalNFTStart === -1 || factoryStart === -1) {
@@ -690,6 +754,28 @@ export const ROYAL_NFT_ABI = [
 ];
 
 // Deploy collection function for AI mint page
+export interface DeployedCollectionResult {
+  contractAddress: string;
+  transactionHash: `0x${string}`;
+  chainId: 8453 | 84532;
+  collectionParams: {
+    name: string;
+    symbol: string;
+    contractURI: string;
+    baseURI: string;
+    unrevealedURI: string;
+    maxSupply: bigint;
+    mintPrice: bigint;
+    maxMintPerWallet: bigint;
+    mintStart: bigint;
+    mintEnd: bigint;
+    revealTime: bigint;
+    royaltyReceiver: `0x${string}`;
+    royaltyBps: bigint;
+    allowlistRoot: `0x${string}`;
+  };
+}
+
 export async function deployCollection(
   creatorAddress: string,
   collectionDetails: {
@@ -702,10 +788,15 @@ export async function deployCollection(
   },
   metadataURI: string,
   client: WalletClient
-): Promise<string> {
+): Promise<DeployedCollectionResult> {
   const { parseEther, createPublicClient, http } = await import('viem');
   const { CONTRACTS } = await import('@/lib/config');
   const address = creatorAddress as `0x${string}`;
+  const chainId = client.chain?.id;
+
+  if (chainId !== 8453 && chainId !== 84532) {
+    throw new Error('Please switch your wallet to Base or Base Sepolia before deploying.');
+  }
 
   // Set deployment fee to 0.0001 ETH
   const deploymentFeeWei = parseEther('0.0001');
@@ -740,7 +831,9 @@ export async function deployCollection(
   });
 
   // Wait for transaction confirmation
-  const publicRpcUrl = 'https://sepolia.base.org';
+  const publicRpcUrl = chainId === 84532
+    ? 'https://sepolia.base.org'
+    : 'https://mainnet.base.org';
   const publicClient = createPublicClient({
     transport: http(publicRpcUrl)
   });
@@ -770,5 +863,10 @@ export async function deployCollection(
     throw new Error('Failed to extract deployed contract address');
   }
 
-  return deployedCollectionAddress;
+  return {
+    contractAddress: deployedCollectionAddress,
+    transactionHash: hash,
+    chainId,
+    collectionParams,
+  };
 }

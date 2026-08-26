@@ -584,10 +584,10 @@ contract RoyalNFT is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable, Reentr
 contract HOJNFTGen is Ownable, ReentrancyGuard {
     uint256 public deploymentFee = 0.0001 ether;
     address public feeRecipient;
-    
+
     mapping(address => bool) public isWhitelistedCreator;
     mapping(address => uint256) public creatorDeployments;
-    
+
     event CollectionCreated(address indexed creator, address indexed collection, string name, string symbol);
     event DeploymentFeeUpdated(uint256 newFee);
     event FeeRecipientUpdated(address newRecipient);
@@ -601,24 +601,24 @@ contract HOJNFTGen is Ownable, ReentrancyGuard {
         require(msg.value >= deploymentFee, "Insufficient deployment fee");
         require(bytes(p.name).length > 0, "Name required");
         require(bytes(p.symbol).length > 0, "Symbol required");
-        
+
         RoyalNFT collection = new RoyalNFT(p);
         collection.transferOwnership(msg.sender);
-        
+
         creatorDeployments[msg.sender]++;
-        
+
         emit CollectionCreated(msg.sender, address(collection), p.name, p.symbol);
-        
+
         if (deploymentFee > 0) {
             (bool success, ) = payable(feeRecipient).call{value: deploymentFee}("");
             require(success, "Fee transfer failed");
         }
-        
+
         if (msg.value > deploymentFee) {
             (bool success, ) = payable(msg.sender).call{value: msg.value - deploymentFee}("");
             require(success, "Refund failed");
         }
-        
+
         return address(collection);
     }
 

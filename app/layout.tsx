@@ -1,31 +1,11 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/components/providers';
-import { Cinzel, Inter, JetBrains_Mono } from 'next/font/google';
-
-const cinzel = Cinzel({
-  subsets: ['latin'],
-  variable: '--font-cinzel',
-  display: 'swap',
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'House of Joshi Launchpad | NFT Launchpad on Base',
   description: 'Create, launch, and mint generative NFT collections on Base. The premier NFT launchpad with royalty-themed aesthetics.',
   metadataBase: new URL('https://nftlaunchpad.thehouseofjoshi.com'),
-  themeColor: '#6E44FF',
   generator: 'Next.js',
   openGraph: {
     title: 'House of Joshi Launchpad | NFT Launchpad on Base',
@@ -55,14 +35,6 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.png',
   },
   manifest: '/manifest.json',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    minimumScale: 1,
-    viewportFit: 'cover',
-    userScalable: true,
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -76,13 +48,23 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  minimumScale: 1,
+  viewportFit: 'cover',
+  userScalable: true,
+  themeColor: '#6E44FF',
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={`dark ${cinzel.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className="dark">
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
