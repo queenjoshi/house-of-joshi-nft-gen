@@ -768,6 +768,13 @@ export const ROYAL_NFT_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [{ internalType: "address", name: "wallet", type: "address" }],
+    name: "mintedByWallet",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ];
 
 // Deploy collection function for AI mint page

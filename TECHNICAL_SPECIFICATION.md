@@ -135,7 +135,7 @@ This document outlines the technical architecture and specifications of the Hous
 ### Upload Functions
 1. **File Upload**: `uploadFileToIPFS(file)` - Upload images/assets
 2. **JSON Upload**: `uploadJSONToIPFS(jsonObject, name)` - Upload metadata
-3. **Collection Metadata**: `generateAndUploadCollectionMetadata()` - Full collection metadata generation
+3. **Collection Metadata**: `publishImageToIPFS()` and `uploadMetadataDirectory()` publish permanent collection artwork and numbered token metadata
 
 ### Metadata Structure
 **Contract Metadata**:

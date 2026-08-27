@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutGrid, List, Crown, ExternalLink, Sparkles, RotateCcw } from 'lucide-react';
+import { LayoutGrid, List, Crown, Sparkles, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +24,6 @@ interface CollectionCard {
   coverImage: string | null;
   bannerImage: string | null;
   maxSupply: number;
-  minted: number;
   mintPrice: string;
   creator: string;
   isVerified: boolean;
@@ -35,8 +34,6 @@ export default function CollectionsPage() {
   const [collections, setCollections] = useState<CollectionCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
   
   const deployedCollections = useCollectionsStore((state) => state.deployedCollections);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -72,7 +69,6 @@ export default function CollectionsPage() {
         coverImage: col.cover_image_url,
         bannerImage: col.banner_url,
         maxSupply: col.max_supply,
-        minted: 0, // live mint count comes from the contract itself, wired up separately
         mintPrice: String(col.mint_price_eth ?? '0'),
         creator: col.users?.wallet_address ?? '',
         isVerified: !!col.is_verified,
@@ -91,7 +87,6 @@ export default function CollectionsPage() {
           coverImage: col.coverImage,
           bannerImage: col.bannerImage,
           maxSupply: col.maxSupply,
-          minted: 0,
           mintPrice: col.mintPrice,
           creator: col.creatorAddress,
           isVerified: false,
@@ -110,29 +105,8 @@ export default function CollectionsPage() {
     };
   }, [isHydrated, deployedCollections]);
 
-  const handleDebug = () => {
-    const stored = localStorage.getItem('collections-storage');
-    const info = `
-Collections in localStorage:
-${stored ? JSON.stringify(JSON.parse(stored), null, 2) : 'No data found'}
-
-Collections in state:
-${JSON.stringify(deployedCollections, null, 2)}
-
-Display collections:
-${JSON.stringify(collections, null, 2)}
-    `;
-    setDebugInfo(info);
-    setShowDebug(true);
-    console.log(info);
-  };
-
   const handleRefresh = () => {
     window.location.reload();
-  };
-
-  const getOpenSeaUrl = (contractAddress: string) => {
-    return `https://opensea.io/collection/${contractAddress}`;
   };
 
   if (!isHydrated) {
@@ -224,15 +198,6 @@ ${JSON.stringify(collections, null, 2)}
                 >
                   <RotateCcw className="h-4 w-4 sm:h-4 sm:w-4" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleDebug}
-                  title="Show debug info"
-                  className="h-8 sm:h-8 px-2 sm:px-2 md:px-3 text-xs sm:text-xs md:text-sm"
-                >
-                  Debug
-                </Button>
               </div>
             </div>
           </div>
@@ -319,9 +284,9 @@ ${JSON.stringify(collections, null, 2)}
                             {/* Stats Grid */}
                             <div className="grid grid-cols-2 gap-2 sm:gap-3">
                               <div className="p-2 rounded bg-royal-500/10 border border-royal-500/20">
-                                <p className="text-xs text-muted-foreground mb-1">Minted</p>
+                                <p className="text-xs text-muted-foreground mb-1">Supply</p>
                                 <p className="font-semibold text-amber-400">
-                                  {collection.minted.toLocaleString()} / {collection.maxSupply.toLocaleString()}
+                                  {collection.maxSupply.toLocaleString()}
                                 </p>
                               </div>
                               <div className="p-2 rounded bg-royal-500/10 border border-royal-500/20">
@@ -330,40 +295,11 @@ ${JSON.stringify(collections, null, 2)}
                               </div>
                             </div>
 
-                            {/* Progress Bar */}
-                            <div>
-                              <div className="w-full h-2 bg-royal-500/20 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-gradient-to-r from-amber-500 to-amber-300"
-                                  style={{
-                                    width: `${(collection.minted / collection.maxSupply) * 100}%`,
-                                  }}
-                                />
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {Math.round((collection.minted / collection.maxSupply) * 100)}% Sold
-                              </p>
-                            </div>
-
                             {/* Actions */}
                             <div className="flex gap-2 pt-2">
                               <Button size="sm" className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm">
                                 <Sparkles className="h-4 w-4 mr-1" />
                                 Mint
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="royal-border"
-                                asChild
-                              >
-                                <a
-                                  href={getOpenSeaUrl(collection.contractAddress)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
                               </Button>
                             </div>
                           </CardContent>
@@ -456,17 +392,8 @@ ${JSON.stringify(collections, null, 2)}
                                   {collection.symbol} • {collection.maxSupply.toLocaleString()} Supply
                                 </p>
 
-                                {/* Progress */}
-                                <div className="w-full h-1.5 bg-royal-500/20 rounded-full overflow-hidden mb-1">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-amber-500 to-amber-300"
-                                    style={{
-                                      width: `${(collection.minted / collection.maxSupply) * 100}%`,
-                                    }}
-                                  />
-                                </div>
                                 <p className="text-xs text-muted-foreground">
-                                  {collection.minted.toLocaleString()} / {collection.maxSupply.toLocaleString()} minted
+                                  Open the collection to see live mint availability.
                                 </p>
                               </div>
 
@@ -476,12 +403,7 @@ ${JSON.stringify(collections, null, 2)}
                                   <p className="text-xs text-muted-foreground mb-1">Mint Price</p>
                                   <p className="font-semibold text-amber-400">{collection.mintPrice} ETH</p>
                                 </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Progress</p>
-                                  <p className="font-semibold text-amber-400">
-                                    {Math.round((collection.minted / collection.maxSupply) * 100)}%
-                                  </p>
-                                </div>
+                                <div><p className="text-xs text-muted-foreground mb-1">Supply</p><p className="font-semibold text-amber-400">{collection.maxSupply.toLocaleString()}</p></div>
                               </div>
 
                               {/* Actions */}
@@ -489,20 +411,6 @@ ${JSON.stringify(collections, null, 2)}
                                 <Button size="sm" className="flex-1 md:flex-none bg-amber-500 hover:bg-amber-600 text-white">
                                   <Sparkles className="h-4 w-4 mr-1" />
                                   Mint
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="royal-border"
-                                  asChild
-                                >
-                                  <a
-                                    href={getOpenSeaUrl(collection.contractAddress)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                  </a>
                                 </Button>
                               </div>
                             </div>
@@ -517,29 +425,6 @@ ${JSON.stringify(collections, null, 2)}
           )}
         </div>
       </main>
-
-      {/* Debug Modal */}
-      {showDebug && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="royal-card w-full max-w-2xl max-h-96 overflow-auto">
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold">Debug Information</h3>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setShowDebug(false)}
-                >
-                  Close
-                </Button>
-              </div>
-              <pre className="text-xs bg-royal-500/10 p-3 rounded border border-royal-500/20 overflow-auto max-h-80">
-                {debugInfo}
-              </pre>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       <Footer />
     </div>
