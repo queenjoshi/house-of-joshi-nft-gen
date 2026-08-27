@@ -3,11 +3,12 @@
 /* eslint-disable @next/next/no-img-element -- local SVG data URIs are not supported by next/image optimization. */
 
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Crown, ImageIcon, Layers3, Sparkles, Wand2 } from 'lucide-react';
+import { CheckCircle2, Crown, ImageIcon, Layers3, LockKeyhole, ReceiptText, ShieldCheck, Sparkles, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 
 const STYLE_OPTIONS = [
@@ -22,6 +23,19 @@ const STARTER_PROMPTS = [
   'A celestial empress made of starlight and molten gold',
   'An ancient palace guardian with luminous gemstones',
 ];
+
+const PRODUCTION_MODES = {
+  single: {
+    label: '1-of-1 NFT',
+    price: '0.015 ETH',
+    detail: 'One final AI artwork, IPFS metadata, and one mint-ready NFT.',
+  },
+  collection: {
+    label: 'Generative collection',
+    price: 'from 0.05 ETH',
+    detail: 'Batch final artwork, metadata set, collection cover, banner, and rarity structure.',
+  },
+} as const;
 
 function escapeXml(value: string) {
   return value.replace(/[<>&'\"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character] || character));
@@ -67,9 +81,12 @@ function createLocalDraft(prompt: string, palette: string[]) {
 export function AIPreviewBuilder() {
   const [prompt, setPrompt] = useState(STARTER_PROMPTS[0]);
   const [style, setStyle] = useState(STYLE_OPTIONS[0].value);
+  const [productionMode, setProductionMode] = useState<keyof typeof PRODUCTION_MODES>('single');
+  const [collectionSize, setCollectionSize] = useState(25);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const selectedStyle = useMemo(() => STYLE_OPTIONS.find((option) => option.value === style) || STYLE_OPTIONS[0], [style]);
+  const estimatedCollectionPrice = productionMode === 'collection' ? (0.05 + Math.max(0, collectionSize - 25) * 0.0012).toFixed(3) : null;
 
   const handlePreview = () => {
     const concept = prompt.trim();
@@ -82,7 +99,8 @@ export function AIPreviewBuilder() {
   };
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-8">
+    <div className="space-y-8">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-8">
       <Card className="royal-card border-royal-500/30 shadow-royal">
         <CardHeader className="border-b border-royal-500/15"><CardTitle className="flex items-center gap-2 font-display text-2xl"><Wand2 className="h-5 w-5 text-crown" />Shape a concept</CardTitle><CardDescription>Create a local visual wireframe. No wallet, cloud request, payment, or AI image generation is used.</CardDescription></CardHeader>
         <CardContent className="space-y-6 pt-6">
@@ -96,8 +114,78 @@ export function AIPreviewBuilder() {
       </Card>
       <div className="space-y-6">
         <Card className="royal-card overflow-hidden"><CardHeader className="border-b border-royal-500/15"><CardTitle className="flex items-center gap-2 font-display text-xl"><ImageIcon className="h-5 w-5 text-crown" />Your local concept</CardTitle></CardHeader><CardContent className="p-4 sm:p-6">{previewImage ? <div className="overflow-hidden rounded-xl border border-crown/25 bg-royal-950/40"><img src={previewImage} alt="House of Joshi NFT concept wireframe" className="aspect-square w-full object-cover" /></div> : <div className="grid aspect-square place-items-center rounded-xl border border-dashed border-royal-500/30 bg-gradient-to-br from-royal-500/10 to-gold-500/10 p-8 text-center"><div><div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl border border-crown/25 bg-crown/10"><Crown className="h-8 w-8 text-crown" /></div><h2 className="font-display text-xl font-semibold">Your vision appears here</h2><p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-muted-foreground">Write a concept and create a zero-cost local wireframe.</p></div></div>}</CardContent></Card>
-        <div className="grid gap-4 sm:grid-cols-2"><Card className="royal-card border-royal-500/20"><CardContent className="p-5"><CheckCircle2 className="mb-3 h-5 w-5 text-crown" /><h2 className="font-display text-lg font-semibold">Produce a 1-of-1</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Paid generation, permanent IPFS storage, and Dreamweaver minting will happen only after confirmed payment.</p><p className="mt-4 text-xs font-medium text-crown">Paid production coming next</p></CardContent></Card><Card className="royal-card border-royal-500/20"><CardContent className="p-5"><Layers3 className="mb-3 h-5 w-5 text-crown" /><h2 className="font-display text-lg font-semibold">Build a collection</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Paid production will create traits, rarity, metadata, and launch assets after payment confirmation.</p><p className="mt-4 text-xs font-medium text-crown">Paid production coming next</p></CardContent></Card></div>
+        <div className="grid gap-4 sm:grid-cols-2"><Card className="royal-card border-royal-500/20"><CardContent className="p-5"><CheckCircle2 className="mb-3 h-5 w-5 text-crown" /><h2 className="font-display text-lg font-semibold">Produce a 1-of-1</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Paid generation, permanent IPFS storage, and Dreamweaver minting will happen only after confirmed payment.</p><p className="mt-4 text-xs font-medium text-crown">Paid production below</p></CardContent></Card><Card className="royal-card border-royal-500/20"><CardContent className="p-5"><Layers3 className="mb-3 h-5 w-5 text-crown" /><h2 className="font-display text-lg font-semibold">Build a collection</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Paid production will create traits, rarity, metadata, and launch assets after payment confirmation.</p><p className="mt-4 text-xs font-medium text-crown">Paid production below</p></CardContent></Card></div>
       </div>
+      </div>
+
+      <Card className="royal-card-gold overflow-hidden border-crown/30">
+        <CardHeader className="border-b border-crown/20">
+          <CardTitle className="flex items-center gap-2 font-display text-2xl">
+            <ReceiptText className="h-5 w-5 text-crown" />
+            Paid production
+          </CardTitle>
+          <CardDescription>Final AI art, IPFS storage, and mint-ready metadata only start after payment is confirmed.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {Object.entries(PRODUCTION_MODES).map(([mode, option]) => {
+                const isActive = productionMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setProductionMode(mode as keyof typeof PRODUCTION_MODES)}
+                    className={`rounded-lg border p-4 text-left transition ${isActive ? 'border-crown bg-crown/15 shadow-royal' : 'border-royal-500/20 bg-royal-950/20 hover:border-crown/50'}`}
+                  >
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="font-display text-lg font-semibold">{option.label}</span>
+                      {mode === 'single' ? <ImageIcon className="h-5 w-5 text-crown" /> : <Layers3 className="h-5 w-5 text-crown" />}
+                    </span>
+                    <span className="mt-2 block text-sm font-semibold text-crown">{mode === 'collection' && estimatedCollectionPrice ? `${estimatedCollectionPrice} ETH est.` : option.price}</span>
+                    <span className="mt-2 block text-sm leading-6 text-muted-foreground">{option.detail}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {productionMode === 'collection' && (
+              <div className="rounded-lg border border-royal-500/20 bg-royal-950/20 p-4">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <Label htmlFor="collection-size">Collection size</Label>
+                  <span className="text-sm font-semibold text-crown">{collectionSize} NFTs</span>
+                </div>
+                <Slider id="collection-size" min={10} max={100} step={5} value={[collectionSize]} onValueChange={(value) => setCollectionSize(value[0] || 25)} />
+                <div className="mt-3 flex justify-between text-xs text-muted-foreground"><span>10</span><span>100</span></div>
+              </div>
+            )}
+
+            <Button disabled className="gold-button h-12 w-full disabled:cursor-not-allowed disabled:opacity-70">
+              <LockKeyhole className="mr-2 h-5 w-5" />
+              Connect payment contract next
+            </Button>
+            <p className="text-center text-xs leading-5 text-muted-foreground">This button stays locked until we add transaction verification. That keeps unpaid users from triggering paid cloud generation.</p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="rounded-lg border border-royal-500/20 bg-royal-950/20 p-4">
+              <ShieldCheck className="mb-3 h-5 w-5 text-crown" />
+              <h3 className="font-display text-base font-semibold">1. Verify payment</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Backend checks the Base transaction hash, recipient, amount, wallet, and whether it was already used.</p>
+            </div>
+            <div className="rounded-lg border border-royal-500/20 bg-royal-950/20 p-4">
+              <Sparkles className="mb-3 h-5 w-5 text-crown" />
+              <h3 className="font-display text-base font-semibold">2. Generate final art</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Vertex AI runs only after the payment check passes, using the approved prompt and House style.</p>
+            </div>
+            <div className="rounded-lg border border-royal-500/20 bg-royal-950/20 p-4">
+              <CheckCircle2 className="mb-3 h-5 w-5 text-crown" />
+              <h3 className="font-display text-base font-semibold">3. Pin and mint</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">Final image, metadata, cover, and banner go to IPFS, then the NFT or collection becomes ready to mint.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
