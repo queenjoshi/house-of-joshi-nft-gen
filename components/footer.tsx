@@ -32,6 +32,8 @@ const FOOTER_LINKS = {
   ],
   services: [
     { label: 'House of Joshi Swap & Bridge', href: 'https://swap.thehouseofjoshi.com/', external: true },
+    { label: 'NFT Marketplace', href: 'https://nftmarketplace.thehouseofjoshi.com/', external: true },
+    { label: 'Kingdom Within', href: 'https://kingdomwithin.thehouseofjoshi.com/', external: true },
     { label: 'Legacy Vault', href: '/vault', external: false },
     { label: 'DreamWeaver', href: 'https://dreamweaver.thehouseofjoshi.com/', external: true },
     { label: 'Contact', href: '/contact', external: false },
